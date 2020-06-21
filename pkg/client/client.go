@@ -61,8 +61,8 @@ func New(conn net.Conn, idKey *[24]byte, identifier string) (c *Client, err erro
 	return c, nil
 }
 
-func (c *Client) Nonce() *[24]byte {
-	c.lastNonce = IncrementNonce(c.lastNonce)
+func (c *Client) nonce() *[24]byte {
+	c.lastNonce = incrementNonce(c.lastNonce)
 
 	return c.lastNonce
 }
@@ -96,6 +96,8 @@ func (c *Client) makeRequest(request, response interface{}) (err error) {
 func (c *Client) makeRequestWithMessage(action string, message, response interface{}) (err error) {
 	for {
 		err = c.makeRequestWithMessageNoRetry(action, message, response)
+
+		// TODO: find out why this is happening
 		if errors.Is(err, ErrFailedToOpen) {
 			continue
 		}
@@ -107,7 +109,7 @@ func (c *Client) makeRequestWithMessage(action string, message, response interfa
 }
 
 func (c *Client) makeRequestWithMessageNoRetry(action string, message, response interface{}) (err error) {
-	nonce := c.Nonce()
+	nonce := c.nonce()
 
 	msg, err := json.Marshal(message)
 	if err != nil {
@@ -129,7 +131,7 @@ func (c *Client) makeRequestWithMessageNoRetry(action string, message, response 
 	}
 
 	if resp.Error != nil {
-		return ProtocolError(*resp.Error, *resp.Code)
+		return protocolError(*resp.Error, *resp.Code)
 	}
 
 	n := &[24]byte{}
@@ -148,7 +150,7 @@ func (c *Client) makeRequestWithMessageNoRetry(action string, message, response 
 	return json.Unmarshal(b, response)
 }
 
-func IncrementNonce(b *[24]byte) (out *[24]byte) {
+func incrementNonce(b *[24]byte) (out *[24]byte) {
 	out = &[24]byte{}
 
 	c := 1

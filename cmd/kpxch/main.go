@@ -88,7 +88,7 @@ func connect(socketpath, fname string) (c *client.Client, err error) {
 
 		if _, err = c.TestAssociate(); err != nil {
 			// TODO: find out why this is happening
-			if errors.Is(err, client.ErrCantDecrypt) || errors.Is(err, client.ErrFailedToOpen) {
+			if errors.Is(err, client.ErrCantDecrypt) {
 				continue
 			}
 

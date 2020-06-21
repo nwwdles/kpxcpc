@@ -12,7 +12,7 @@ const (
 	CodeNoLoginsFound = 15
 )
 
-func ProtocolError(msg string, code int) error {
+func protocolError(msg string, code int) error {
 	switch code {
 	case CodeCantDecrypt:
 		return ErrCantDecrypt
@@ -27,7 +27,7 @@ func (c *Client) ChangePublicKeys() (resp ChangePublicKeysResponse, err error) {
 	req := ChangePublicKeysRequest{
 		Request: Request{
 			Action:   ChangePublicKeysAction,
-			Nonce:    c.Nonce()[:],
+			Nonce:    c.nonce()[:],
 			ClientID: c.clientID[:],
 		},
 		PulicKey: c.pubkey[:],
