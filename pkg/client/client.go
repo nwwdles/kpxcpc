@@ -2,95 +2,56 @@ package client
 
 import (
 	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 	"log"
 	"net"
-	"os"
 
-	"github.com/cupnoodles14/kpxch-go/pkg/protocol"
 	"golang.org/x/crypto/nacl/box"
 )
 
 type Client struct {
+	// Session
 	conn         net.Conn
-	privkey      *[32]byte
-	pubkey       *[32]byte
-	serverPubkey *[32]byte
-	idKey        *[24]byte
-	identifier   string
-	dbID         *[24]byte
-	clientID     string
+	privkey      [32]byte
+	pubkey       [32]byte
+	serverPubkey [32]byte
+	clientID     [24]byte
+
+	// Association
+	idKey      [24]byte // client identifier key
+	identifier string   // user-set identifier
 }
 
-func encode(b []byte) (s string) {
-	return base64.StdEncoding.EncodeToString(b)
-}
-
-func decode(s string) ([]byte, error) {
-	return base64.StdEncoding.DecodeString(s)
-}
-
-func Nonce() (nonce *[24]byte, err error) {
-	nonce = &[24]byte{}
-	if _, err = io.ReadFull(rand.Reader, nonce[:]); err != nil {
-		return
-	}
-
-	return
-}
-
-func MakeRequest(conn io.ReadWriter, request, response interface{}) (err error) {
-	b, err := json.Marshal(request)
-	if err != nil {
-		return
-	}
-
-	if _, err = conn.Write(b); err != nil {
-		return
-	}
-
-	buff := make([]byte, 1024)
-
-	n, err := conn.Read(buff)
-	if err != nil {
-		return
-	}
-
-	log.Printf("\n\tSent: %s\n\tReceived: %s\n", b, buff[:n])
-
-	return json.Unmarshal(buff[:n], &response)
-}
-
-func New() *Client {
+func New(conn net.Conn, idKey *[24]byte, identifier string) (c *Client, err error) {
 	pubkey, privkey, err := box.GenerateKey(rand.Reader)
 	if err != nil {
-		panic(err)
+		return
 	}
 
-	conn, err := net.Dial("unix", os.Getenv("XDG_RUNTIME_DIR")+"/kpxc_server")
+	clientID, err := Nonce() // nonce has the same size as we want
 	if err != nil {
-		panic(err)
+		return
 	}
 
-	idKey, err := Nonce()
-	if err != nil {
-		panic(err)
-	}
-
-	return &Client{
-		privkey:  privkey,
-		pubkey:   pubkey,
-		clientID: "golang",
+	c = &Client{
 		conn:     conn,
-		idKey:    idKey,
+		privkey:  *privkey,
+		pubkey:   *pubkey,
+		clientID: *clientID,
+
+		idKey:      *idKey,
+		identifier: identifier,
 	}
+
+	return c, nil
 }
 
-func (c *Client) encryptedRequest(action string, message, response interface{}) (err error) {
+func (c *Client) GetAssociation() (idKey [24]byte, identifier string) {
+	return c.idKey, c.identifier
+}
+
+func (c *Client) makeRequestWithMessage(action string, message, response interface{}) (err error) {
 	nonce, err := Nonce()
 	if err != nil {
 		return
@@ -101,15 +62,17 @@ func (c *Client) encryptedRequest(action string, message, response interface{}) 
 		return
 	}
 
-	req := protocol.Request{
+	log.Printf("-->MSG:\n%s\n", msg)
+
+	req := Request{
+		ClientID: c.clientID[:],
 		Action:   action,
-		Nonce:    encode(nonce[:]),
-		ClientID: c.clientID,
-		Message:  encode(box.Seal([]byte{}, msg, nonce, c.serverPubkey, c.privkey)),
+		Nonce:    Base64Bytes(nonce[:]),
+		Message:  Base64Bytes(box.Seal([]byte{}, msg, nonce, &c.serverPubkey, &c.privkey)),
 	}
 
-	resp := &protocol.Response{}
-	if err = MakeRequest(c.conn, req, resp); err != nil {
+	resp := &Response{}
+	if err = makeRequest(c.conn, req, resp); err != nil {
 		return
 	}
 
@@ -119,24 +82,14 @@ func (c *Client) encryptedRequest(action string, message, response interface{}) 
 
 	n := &[24]byte{}
 
-	nx, err := decode(*resp.Nonce)
-	if err != nil {
-		return
-	}
+	copy(n[:], resp.Nonce)
 
-	copy(n[:], nx)
-
-	msgb, err := decode(*resp.Message)
-	if err != nil {
-		return
-	}
-
-	b, ok := box.Open([]byte{}, msgb, n, c.serverPubkey, c.privkey)
+	b, ok := box.Open([]byte{}, resp.Message, n, &c.serverPubkey, &c.privkey)
 	if !ok {
 		return errors.New("failed to open message")
 	}
 
-	fmt.Println(string(b))
+	log.Println(string(b))
 
 	return json.Unmarshal(b, response)
 }

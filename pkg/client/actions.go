@@ -2,79 +2,84 @@ package client
 
 import (
 	"errors"
-
-	"github.com/cupnoodles14/kpxch-go/pkg/protocol"
 )
 
-func (c *Client) ChangePublicKeys() (err error) {
+func (c *Client) ChangePublicKeys() (resp ChangePublicKeysResponse, err error) {
 	nonce, err := Nonce()
 	if err != nil {
 		return
 	}
 
-	req := protocol.ChangePublicKeysRequest{
-		Request: protocol.Request{
-			Action:   protocol.ChangePublicKeysAction,
-			Nonce:    encode(nonce[:]),
-			ClientID: "golang",
+	req := ChangePublicKeysRequest{
+		Request: Request{
+			Action:   ChangePublicKeysAction,
+			Nonce:    nonce[:],
+			ClientID: c.clientID[:],
 		},
-		PulicKey: encode(c.pubkey[:]),
+		PulicKey: c.pubkey[:],
 	}
 
-	resp := protocol.ChangePublicKeysResponse{}
-	if err = MakeRequest(c.conn, req, &resp); err != nil {
+	if err = makeRequest(c.conn, req, &resp); err != nil {
 		return
 	}
 
 	if resp.Error != nil {
-		return errors.New(*resp.Error)
-	}
-
-	c.serverPubkey = &[32]byte{}
-
-	key, err := decode(resp.PulicKey)
-	if err != nil {
+		err = errors.New(*resp.Error)
 		return
 	}
 
-	copy(c.serverPubkey[:], key)
+	copy(c.serverPubkey[:], resp.PulicKey)
 
-	return err
+	return resp, err
 }
 
-func (c *Client) Associate() (err error) {
-	m := protocol.AssociateMessage{
-		Action: protocol.AssociateAction,
-		Key:    encode(c.pubkey[:]),
-		IDKey:  encode(c.idKey[:]),
+func (c *Client) Associate() (resp AssociateResponseMessage, err error) {
+	m := AssociateMessage{
+		Action: AssociateAction,
+		Key:    c.pubkey[:],
+		IDKey:  c.idKey[:],
 	}
 
-	resp := protocol.AssociateResponseMessage{}
-	if err = c.encryptedRequest(m.Action, m, &resp); err != nil {
+	if err = c.makeRequestWithMessage(m.Action, m, &resp); err != nil {
 		return
 	}
 
 	c.identifier = resp.ID
 
-	return err
+	return
 }
 
-func (c *Client) GetLogins(url string) (err error) {
-	m := protocol.GetLoginsMessage{
-		Action: protocol.GetLoginsAction,
-		URL:    url,
-		Keys: []protocol.Key{{
+func (c *Client) TestAssociate() (resp TestAssociateResponseMessage, err error) {
+	m := TestAssociateMessage{
+		Action: TestAssociateAction,
+		DBKey: DBKey{
 			ID:  c.identifier,
-			Key: encode(c.idKey[:]),
+			Key: c.idKey[:],
+		},
+	}
+
+	if err = c.makeRequestWithMessage(m.Action, m, &resp); err != nil {
+		return
+	}
+
+	c.identifier = resp.ID
+
+	return
+}
+
+func (c *Client) GetLogins(url string) (resp GetLoginsResponseMessage, err error) {
+	m := GetLoginsMessage{
+		Action: GetLoginsAction,
+		URL:    url,
+		Keys: []DBKey{{
+			ID:  c.identifier,
+			Key: c.idKey[:],
 		}},
 	}
 
-	resp := protocol.AssociateResponseMessage{}
-	if err = c.encryptedRequest(m.Action, m, &resp); err != nil {
+	if err = c.makeRequestWithMessage(m.Action, m, &resp); err != nil {
 		return
 	}
 
-	c.identifier = resp.ID
-
-	return err
+	return
 }
