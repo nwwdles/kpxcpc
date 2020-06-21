@@ -119,7 +119,8 @@ func connect(socketpath, fname string) (c *client.Client, err error) {
 				continue
 			}
 
-			if waitForUnlock && errors.Is(err, client.ErrDBNotOpen) { // todo: retries
+			_, n := c.GetAssociation()
+			if waitForUnlock && errors.Is(err, client.ErrDBNotOpen) && n != "" {
 				time.Sleep(time.Second)
 
 				triggerUnlock = false
