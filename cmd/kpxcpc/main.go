@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cupnoodles14/kpxch-go/pkg/client"
+	"github.com/cupnoodles14/kpxcpc/pkg/client"
 )
 
 type Association struct {
@@ -154,7 +154,7 @@ func main() {
 		datahome = os.Getenv("HOME") + "/.local/share"
 	}
 
-	identity := flag.String("identity", datahome+"/kpxch/identity.json",
+	identity := flag.String("identity", datahome+"/kpxcpc/identity.json",
 		"set identity file")
 	printJSON := flag.Bool("json", false,
 		"print json")
