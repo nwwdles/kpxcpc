@@ -1,0 +1,104 @@
+run:
+    deadline: 1m
+    build-tags:
+        - integration
+    tests: true
+    skip-dirs-use-default: true
+
+linters-settings:
+    errcheck:
+        check-type-assertions: true
+        check-blank: true
+    govet:
+        check-shadowing: true
+        use-installed-packages: false
+        enable-all: true
+    gofmt:
+        simplify: true
+    gocyclo:
+        min-complexity: 10
+    maligned:
+        suggest-new: true
+    dupl:
+        threshold: 150
+    goconst:
+        min-len: 3
+        min-occurrences: 3
+    depguard:
+        list-type: blacklist
+        include-go-root: false
+        packages:
+            - github.com/davecgh/go-spew/spew
+    misspell:
+        locale: US
+    lll:
+        line-length: 140
+        tab-width: 8
+    unused:
+        # check-exported: false
+    unparam:
+        algo: cha
+        # check-exported: false
+    nakedret:
+        max-func-lines: 30
+    prealloc:
+        simple: true
+        range-loops: true # Report preallocation suggestions on range loops, true by default
+        for-loops: true # Report preallocation suggestions on for loops, false by default
+    gocritic:
+        enabled-tags:
+            - diagnostic
+            - experimental
+            - opinionated
+            - performance
+            - style
+        disabled-checks:
+            - whyNoLint
+            # - octalLiteral
+            # - dupImport # https://github.com/go-critic/go-critic/issues/845
+            # - wrapperFunc
+            # - ifElseChain
+
+linters:
+    fast: false
+    disable-all: false
+    disable:
+        - gochecknoglobals
+        - gochecknoinits
+        - godox
+        - gomnd
+        - testpackage
+    presets:
+        - bugs
+        - complexity
+        - format
+        - performance
+        - style
+        - unused
+
+issues:
+    new: false
+    # new-from-rev: origin/dev
+    exclude-use-default: true
+    exclude-case-sensitive: false
+    max-per-linter: 0
+    max-same: 0
+    exclude:
+    # - G104 # already check in `errcheck` linter
+    # - Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv)|render\.Render|.*Log. is not checked
+    # - (comment on exported (method|function|type|const)|should have( a package)? comment|comment should be of the form)
+    exclude-rules:
+        - path: _test\.go
+          linters:
+              - gocyclo
+              - errcheck
+              - dupl
+              - gosec
+              - gomnd
+              - funlen
+              - goerr113
+              - lll
+        # Go generate comments are allowed to be long
+        - source: "^//go:generate "
+          linters:
+              - lll
