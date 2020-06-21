@@ -156,7 +156,7 @@ func incrementNonce(b *[24]byte) (out *[24]byte) {
 	c := 1
 	for i := range b {
 		c += int(b[i])
-		out[i] = byte(c) & 0xFF // nolint
+		out[i] = byte(c) & 0xFF
 		c >>= 8
 	}
 

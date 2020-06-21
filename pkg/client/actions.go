@@ -19,7 +19,7 @@ func protocolError(msg string, code int) error {
 	case CodeNoLoginsFound:
 		return ErrNoLoginsFound
 	default:
-		return errors.New(msg)
+		return errors.New(msg) // nolint
 	}
 }
 
@@ -38,7 +38,7 @@ func (c *Client) ChangePublicKeys() (resp ChangePublicKeysResponse, err error) {
 	}
 
 	if resp.Error != nil {
-		err = errors.New(*resp.Error)
+		err = protocolError(*resp.Error, *resp.Code)
 		return
 	}
 
