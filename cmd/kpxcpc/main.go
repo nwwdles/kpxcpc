@@ -101,6 +101,8 @@ func connect(socketpath, fname string) (c *client.Client, err error) {
 
 				triggerUnlock = false
 
+				fmt.Fprintf(os.Stderr, "Waiting for DB to be unlocked...\r")
+
 				continue
 			}
 
