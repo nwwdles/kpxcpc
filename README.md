@@ -4,6 +4,16 @@ A non-featureful [KeePassXC-proxy](https://github.com/keepassxreboot/keepassxc-b
 
 Same as browser extension, it retrieves passwords from an unlocked DB. Unlike `secret-tool`, it doesn't require you to set KeePassXC to be your secret service ([there can only be one](https://github.com/keepassxreboot/keepassxc/issues/3945)).
 
+## Installation
+
+If you have Go set up, you can do
+
+```sh
+go get -u github.com/cupnoodles14/kpxcpc/cmd/kpxcpc
+```
+
+Obviously, you may want to review the code first :^)
+
 ## Usage
 
 ```txt
