@@ -2,6 +2,8 @@
 
 A non-featureful [KeePassXC-proxy](https://github.com/keepassxreboot/keepassxc-browser/blob/develop/keepassxc-protocol.md) command line client.
 
+Same as browser extension, it retrieves passwords from an unlocked DB. Unlike `secret-tool`, it doesn't require you to set KeePassXC to be your secret service ([there can only be one](https://github.com/keepassxreboot/keepassxc/issues/3945)).
+
 ## Usage
 
 ```txt
