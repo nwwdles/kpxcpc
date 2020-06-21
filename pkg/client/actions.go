@@ -104,8 +104,6 @@ func (c *Client) TestAssociate(triggerUnlock bool) (resp TestAssociateResponseMe
 		return
 	}
 
-	c.identifier = resp.ID
-
 	return
 }
 
