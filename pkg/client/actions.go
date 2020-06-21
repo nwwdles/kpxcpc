@@ -4,22 +4,36 @@ import (
 	"errors"
 )
 
-func (c *Client) ChangePublicKeys() (resp ChangePublicKeysResponse, err error) {
-	nonce, err := Nonce()
-	if err != nil {
-		return
-	}
+var ErrCantDecrypt = errors.New("can't decrypt message")
+var ErrNoLoginsFound = errors.New("no logins found")
 
+const (
+	CodeCantDecrypt   = 4
+	CodeNoLoginsFound = 15
+)
+
+func ProtocolError(msg string, code int) error {
+	switch code {
+	case CodeCantDecrypt:
+		return ErrCantDecrypt
+	case CodeNoLoginsFound:
+		return ErrNoLoginsFound
+	default:
+		return errors.New(msg)
+	}
+}
+
+func (c *Client) ChangePublicKeys() (resp ChangePublicKeysResponse, err error) {
 	req := ChangePublicKeysRequest{
 		Request: Request{
 			Action:   ChangePublicKeysAction,
-			Nonce:    nonce[:],
+			Nonce:    c.Nonce()[:],
 			ClientID: c.clientID[:],
 		},
 		PulicKey: c.pubkey[:],
 	}
 
-	if err = makeRequest(c.conn, req, &resp); err != nil {
+	if err = c.makeRequest(req, &resp); err != nil {
 		return
 	}
 
@@ -28,6 +42,7 @@ func (c *Client) ChangePublicKeys() (resp ChangePublicKeysResponse, err error) {
 		return
 	}
 
+	copy(c.lastNonce[:], resp.Nonce)
 	copy(c.serverPubkey[:], resp.PulicKey)
 
 	return resp, err

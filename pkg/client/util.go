@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
-	"log"
 )
 
 // Base64Bytes automatically converts an array of bytes to/from base64 string.
@@ -37,26 +36,4 @@ func Nonce() (nonce *[24]byte, err error) {
 	err = randomBytes(nonce[:])
 
 	return
-}
-
-func makeRequest(conn io.ReadWriter, request, response interface{}) (err error) {
-	b, err := json.Marshal(request)
-	if err != nil {
-		return
-	}
-
-	if _, err = conn.Write(b); err != nil {
-		return
-	}
-
-	buff := make([]byte, 1024)
-
-	n, err := conn.Read(buff)
-	if err != nil {
-		return
-	}
-
-	log.Printf("\n\t-->Sent: %s\n\t<--Recv: %s\n", b, buff[:n])
-
-	return json.Unmarshal(buff[:n], &response)
 }

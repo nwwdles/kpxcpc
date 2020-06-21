@@ -2,10 +2,15 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/cupnoodles14/kpxch-go/pkg/client"
 )
@@ -25,6 +30,13 @@ func saveAssociation(fname string, c *client.Client) (err error) {
 	b, err := json.Marshal(a)
 	if err != nil {
 		return
+	}
+
+	err = os.Mkdir(filepath.Dir(fname), 0700)
+	if err != nil {
+		if !errors.Is(err, os.ErrExist) {
+			return
+		}
 	}
 
 	err = ioutil.WriteFile(fname, b, 0600)
@@ -65,47 +77,123 @@ func initClient(socketpath, fname string) (c *client.Client, err error) {
 }
 
 func connect(socketpath, fname string) (c *client.Client, err error) {
-	c, err = initClient(socketpath, fname)
-	if err != nil {
+	if c, err = initClient(socketpath, fname); err != nil {
 		return
 	}
 
-	_, err = c.ChangePublicKeys()
-	if err != nil {
-		return
-	}
-
-	_, err = c.TestAssociate()
-	if err != nil {
-		if _, err = c.Associate(); err != nil {
+	for {
+		if _, err = c.ChangePublicKeys(); err != nil {
 			return
 		}
 
-		if err = saveAssociation(fname, c); err != nil {
-			return
+		if _, err = c.TestAssociate(); err != nil {
+			// TODO: find out why this is happening
+			if errors.Is(err, client.ErrCantDecrypt) || errors.Is(err, client.ErrFailedToOpen) {
+				continue
+			}
+
+			if _, err = c.Associate(); err != nil {
+				return
+			}
+
+			if err = saveAssociation(fname, c); err != nil {
+				return
+			}
 		}
+
+		break
 	}
 
 	return c, err
 }
 
-func main() {
-	const associationFile = "assoc.json"
-
-	c, err := connect(os.Getenv("XDG_RUNTIME_DIR")+"/kpxc_server", associationFile)
-	if err != nil {
-		panic(err)
-	}
-
-	logins, err := c.GetLogins("kpxch://sudo-soba")
-	if err != nil {
-		panic(err)
-	}
-
-	b, err := json.Marshal(logins.Entries)
+func entriesJSONPrint(entries []client.LoginEntry) {
+	b, err := json.Marshal(entries)
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Println(string(b))
+}
+
+func entriesPrintf(format, fieldsformat string, entries []client.LoginEntry) {
+	for i := range entries {
+		e := &entries[i]
+		r := strings.NewReplacer(
+			"%n", e.Name,
+			"%p", e.Password,
+			"%l", e.Login,
+			"%u", e.UUID,
+		)
+		fmt.Print(r.Replace(format))
+
+		for _, v := range e.StringFields {
+			for k, v := range v {
+				r := strings.NewReplacer("%k", k, "%v", v)
+				fmt.Print(r.Replace(fieldsformat))
+			}
+		}
+	}
+}
+
+func main() {
+	datahome := os.Getenv("XDG_DATA_HOME")
+	if datahome == "" {
+		datahome = os.Getenv("HOME") + "/.local/share"
+	}
+
+	identity := flag.String("identity", datahome+"/kpxch/identity.json",
+		"set identity file")
+	printJSON := flag.Bool("json", false,
+		"print json")
+	socket := flag.String("socket", os.Getenv("XDG_RUNTIME_DIR")+"/kpxc_server",
+		"path to keepassxc-proxy socket")
+	fieldsformat := flag.String("ffmt", ``,
+		"format string for stringFields\n  key - %k, value - %v")
+	format := flag.String("fmt", `%p`,
+		"format string for main entry fields\n  name - %n, login - %l, pass - %p, uuid - %u\n")
+
+	flag.Parse()
+
+	urls := flag.Args()
+
+	if len(urls) == 0 {
+		fmt.Fprintln(os.Stderr, "Please provide at least one URL argument.")
+
+		return
+	}
+
+	c, err := connect(*socket, *identity)
+	if err != nil {
+		panic(err)
+	}
+
+	var logins client.GetLoginsResponseMessage
+
+	logins, err = c.GetLogins(urls[0])
+	if err != nil {
+		if errors.Is(err, client.ErrNoLoginsFound) {
+			fmt.Fprintln(os.Stderr, "No logins found.")
+			os.Exit(1)
+		}
+
+		panic(err)
+	}
+
+	if *printJSON {
+		entriesJSONPrint(logins.Entries)
+		return
+	}
+
+	*format, err = strconv.Unquote(`"` + *format + `"`)
+	if err != nil {
+		panic(err)
+	}
+
+	*fieldsformat, err = strconv.Unquote(`"` + *fieldsformat + `"`)
+	if err != nil {
+		panic(err)
+	}
+
+	entriesPrintf(*format, *fieldsformat, logins.Entries)
 }
