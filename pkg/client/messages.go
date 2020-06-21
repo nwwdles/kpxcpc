@@ -6,10 +6,11 @@ const GetLoginsAction = "get-logins"
 const TestAssociateAction = "test-associate"
 
 type Request struct {
-	Action   string      `json:"action"`
-	ClientID Base64Bytes `json:"clientID"`
-	Nonce    Base64Bytes `json:"nonce"`
-	Message  Base64Bytes `json:"message,omitempty"`
+	Action        string      `json:"action"`
+	ClientID      Base64Bytes `json:"clientID"`
+	Nonce         Base64Bytes `json:"nonce"`
+	Message       Base64Bytes `json:"message,omitempty"`
+	TriggerUnlock bool        `json:"triggerUnlock,string,omitempty"`
 }
 
 type Response struct {

@@ -4,16 +4,20 @@ import (
 	"errors"
 )
 
+var ErrDBNotOpen = errors.New("database not open")
 var ErrCantDecrypt = errors.New("can't decrypt message")
 var ErrNoLoginsFound = errors.New("no logins found")
 
 const (
+	CodeDBNotOpen     = 1
 	CodeCantDecrypt   = 4
 	CodeNoLoginsFound = 15
 )
 
 func protocolError(msg string, code int) error {
 	switch code {
+	case CodeDBNotOpen:
+		return ErrDBNotOpen
 	case CodeCantDecrypt:
 		return ErrCantDecrypt
 	case CodeNoLoginsFound:
@@ -55,7 +59,7 @@ func (c *Client) Associate() (resp AssociateResponseMessage, err error) {
 		IDKey:  c.idKey[:],
 	}
 
-	if err = c.makeRequestWithMessage(m.Action, m, &resp); err != nil {
+	if err = c.makeRequestWithMessage(m.Action, m, &resp, true); err != nil {
 		return
 	}
 
@@ -64,7 +68,7 @@ func (c *Client) Associate() (resp AssociateResponseMessage, err error) {
 	return
 }
 
-func (c *Client) TestAssociate() (resp TestAssociateResponseMessage, err error) {
+func (c *Client) TestAssociate(triggerUnlock bool) (resp TestAssociateResponseMessage, err error) {
 	m := TestAssociateMessage{
 		Action: TestAssociateAction,
 		DBKey: DBKey{
@@ -73,7 +77,7 @@ func (c *Client) TestAssociate() (resp TestAssociateResponseMessage, err error) 
 		},
 	}
 
-	if err = c.makeRequestWithMessage(m.Action, m, &resp); err != nil {
+	if err = c.makeRequestWithMessage(m.Action, m, &resp, triggerUnlock); err != nil {
 		return
 	}
 
@@ -92,7 +96,7 @@ func (c *Client) GetLogins(url string) (resp GetLoginsResponseMessage, err error
 		}},
 	}
 
-	if err = c.makeRequestWithMessage(m.Action, m, &resp); err != nil {
+	if err = c.makeRequestWithMessage(m.Action, m, &resp, true); err != nil {
 		return
 	}
 

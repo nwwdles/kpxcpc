@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/cupnoodles14/kpxch-go/pkg/client"
 )
@@ -81,14 +82,25 @@ func connect(socketpath, fname string) (c *client.Client, err error) {
 		return
 	}
 
+	triggerUnlock := true
+	waitForUnlock := true
+
 	for {
 		if _, err = c.ChangePublicKeys(); err != nil {
 			return
 		}
 
-		if _, err = c.TestAssociate(); err != nil {
+		if _, err = c.TestAssociate(triggerUnlock); err != nil {
 			// TODO: find out why this is happening
 			if errors.Is(err, client.ErrCantDecrypt) {
+				continue
+			}
+
+			if waitForUnlock && errors.Is(err, client.ErrDBNotOpen) { // todo: retries
+				time.Sleep(time.Second)
+
+				triggerUnlock = false
+
 				continue
 			}
 

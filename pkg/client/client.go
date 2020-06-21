@@ -93,9 +93,9 @@ func (c *Client) makeRequest(request, response interface{}) (err error) {
 	return json.Unmarshal(buff[:n], &response)
 }
 
-func (c *Client) makeRequestWithMessage(action string, message, response interface{}) (err error) {
+func (c *Client) makeRequestWithMessage(action string, message, response interface{}, triggerUnlock bool) (err error) {
 	for {
-		err = c.makeRequestWithMessageNoRetry(action, message, response)
+		err = c.makeRequestWithMessageNoRetry(action, message, response, triggerUnlock)
 
 		// TODO: find out why this is happening
 		if errors.Is(err, ErrFailedToOpen) {
@@ -108,7 +108,7 @@ func (c *Client) makeRequestWithMessage(action string, message, response interfa
 	return
 }
 
-func (c *Client) makeRequestWithMessageNoRetry(action string, message, response interface{}) (err error) {
+func (c *Client) makeRequestWithMessageNoRetry(action string, message, response interface{}, triggerUnlock bool) (err error) {
 	nonce := c.nonce()
 
 	msg, err := json.Marshal(message)
@@ -119,10 +119,11 @@ func (c *Client) makeRequestWithMessageNoRetry(action string, message, response 
 	c.log.Printf("-->MSG:\n%s\n", msg)
 
 	req := Request{
-		ClientID: c.clientID[:],
-		Action:   action,
-		Nonce:    Base64Bytes(nonce[:]),
-		Message:  Base64Bytes(box.Seal([]byte{}, msg, nonce, &c.serverPubkey, &c.privkey)),
+		ClientID:      c.clientID[:],
+		Action:        action,
+		TriggerUnlock: triggerUnlock,
+		Nonce:         Base64Bytes(nonce[:]),
+		Message:       Base64Bytes(box.Seal([]byte{}, msg, nonce, &c.serverPubkey, &c.privkey)),
 	}
 
 	resp := &Response{}
