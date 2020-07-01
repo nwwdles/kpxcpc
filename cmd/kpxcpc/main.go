@@ -36,7 +36,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cupnoodles14/kpxcpc/pkg/client"
+	"gitlab.com/cupnoodles14/kpxcpc/pkg/client"
 )
 
 type Association struct {

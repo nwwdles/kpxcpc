@@ -1,4 +1,4 @@
-module github.com/cupnoodles14/kpxcpc
+module gitlab.com/cupnoodles14/kpxcpc
 
 go 1.14
 
