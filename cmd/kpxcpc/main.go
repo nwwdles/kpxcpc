@@ -168,6 +168,13 @@ func entriesPrintf(format, fieldsformat string, entries []client.LoginEntry) {
 	}
 }
 
+// unquote expands escape characters like `\n` into actual characters.
+// it can be done by the user but posix sh doesn't have $'\n' and using "$(printf '\n')"
+// or actual newlines is not always desirable.
+func unquote(s string) (string, error) {
+	return strconv.Unquote(`"` + strings.ReplaceAll(s, `"`, `\"`) + `"`)
+}
+
 func main() {
 	datahome := os.Getenv("XDG_DATA_HOME")
 	if datahome == "" {
@@ -225,12 +232,12 @@ func main() {
 	}
 
 	// try to expand \n \t, etc in the format strings
-	*format, err = strconv.Unquote(`"` + *format + `"`)
+	*format, err = unquote(*format)
 	if err != nil {
 		panic(err)
 	}
 
-	*fieldsformat, err = strconv.Unquote(`"` + *fieldsformat + `"`)
+	*fieldsformat, err = unquote(*fieldsformat)
 	if err != nil {
 		panic(err)
 	}
