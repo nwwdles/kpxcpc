@@ -100,49 +100,43 @@ func initClient(socketpath, fname string) (c *client.Client, err error) {
 	return
 }
 
-func connect(socketpath, fname string) (c *client.Client, err error) {
-	if c, err = initClient(socketpath, fname); err != nil {
-		return
-	}
-
-	triggerUnlock := true
-	waitForUnlock := true
-
+func connectAndSaveIdentity(c *client.Client, fname string, waitForUnlock, triggerUnlock bool) (err error) {
 	for {
 		if _, err = c.ChangePublicKeys(); err != nil {
 			return
 		}
 
-		if _, err = c.TestAssociate(triggerUnlock); err != nil {
-			// TODO: find out why this is happening
-			if errors.Is(err, client.ErrCantDecrypt) {
-				continue
-			}
-
-			_, n := c.GetAssociation()
-			if waitForUnlock && errors.Is(err, client.ErrDBNotOpen) && n != "" {
-				time.Sleep(time.Second)
-
-				triggerUnlock = false
-
-				fmt.Fprintf(os.Stderr, "Waiting for DB to be unlocked...\r")
-
-				continue
-			}
-
-			if _, err = c.Associate(); err != nil {
-				return
-			}
-
-			if err = saveAssociation(fname, c); err != nil {
-				return
-			}
+		if _, err = c.TestAssociate(triggerUnlock); err == nil {
+			return
 		}
 
-		break
-	}
+		// Sometimes key exchange fails and we can't decrypt the messages.
+		// This can be fixed by exchanging keys again.
+		// TODO: find out why this is happening
+		if errors.Is(err, client.ErrCantDecrypt) {
+			continue
+		}
 
-	return c, err
+		// If we're associated and the DB is closed, we try again later.
+		// (We get a new keypair but it keeps code shorter).
+		_, n := c.GetAssociation()
+		if waitForUnlock && errors.Is(err, client.ErrDBNotOpen) && n != "" {
+			fmt.Fprintf(os.Stderr, "Waiting for DB to be unlocked...\r")
+			time.Sleep(time.Second)
+
+			triggerUnlock = false
+
+			continue
+		}
+
+		// If all's fine, we get a new identity key and save it.
+		// Failing after this point is unexpected, so we don't retry.
+		if _, err = c.Associate(); err != nil {
+			return
+		}
+
+		return saveAssociation(fname, c)
+	}
 }
 
 func entriesJSONPrint(entries []client.LoginEntry) {
@@ -180,7 +174,7 @@ func main() {
 		datahome = os.Getenv("HOME") + "/.local/share"
 	}
 
-	identity := flag.String("identity", datahome+"/kpxcpc/identity.json",
+	identityFile := flag.String("identity", datahome+"/kpxcpc/identity.json",
 		"set identity file")
 	printJSON := flag.Bool("json", false,
 		"print json")
@@ -201,8 +195,15 @@ func main() {
 		return
 	}
 
-	c, err := connect(*socket, *identity)
+	c, err := initClient(*socket, *identityFile)
 	if err != nil {
+		panic(err)
+	}
+
+	waitForUnlock := true
+	triggerUnlock := true
+
+	if err = connectAndSaveIdentity(c, *identityFile, waitForUnlock, triggerUnlock); err != nil {
 		panic(err)
 	}
 
@@ -223,6 +224,7 @@ func main() {
 		return
 	}
 
+	// try to expand \n \t, etc in the format strings
 	*format, err = strconv.Unquote(`"` + *format + `"`)
 	if err != nil {
 		panic(err)
