@@ -38,6 +38,7 @@ var ErrFailedToOpen = errors.New("failed to open message")
 
 type Client struct {
 	log *log.Logger
+
 	// Session
 	conn         net.Conn
 	privkey      [32]byte
@@ -172,17 +173,4 @@ func (c *Client) makeRequestWithMessageNoRetry(action string, message, response 
 	c.log.Printf("<--RECVMSG:\n%s\n", b)
 
 	return json.Unmarshal(b, response)
-}
-
-func incrementNonce(b *[24]byte) (out *[24]byte) {
-	out = &[24]byte{}
-
-	c := 1
-	for i := range b {
-		c += int(b[i])
-		out[i] = byte(c) & 0xFF
-		c >>= 8
-	}
-
-	return
 }
