@@ -148,23 +148,24 @@ func entriesJSONPrint(entries []client.LoginEntry) {
 	fmt.Println(string(b))
 }
 
-func entriesPrintf(format, fieldsformat string, entries []client.LoginEntry) {
+func entriesPrintf(format string, entries []client.LoginEntry) {
 	for i := range entries {
 		e := &entries[i]
-		r := strings.NewReplacer(
+		replacePairs := []string{
+			"%%", "%",
 			"%n", e.Name,
 			"%p", e.Password,
 			"%l", e.Login,
 			"%u", e.UUID,
-		)
-		fmt.Print(r.Replace(format))
+		}
 
 		for _, v := range e.StringFields {
 			for k, v := range v {
-				r := strings.NewReplacer("%k", k, "%v", v)
-				fmt.Print(r.Replace(fieldsformat))
+				replacePairs = append(replacePairs, "%F:"+strings.TrimPrefix(k, "KPH: "), v)
 			}
 		}
+
+		fmt.Print(strings.NewReplacer(replacePairs...).Replace(format))
 	}
 }
 
@@ -187,10 +188,10 @@ func main() {
 		"print json")
 	socket := flag.String("socket", os.Getenv("XDG_RUNTIME_DIR")+"/kpxc_server",
 		"path to keepassxc-proxy socket")
-	fieldsformat := flag.String("ffmt", ``,
-		"format string for stringFields\n  key - %k, value - %v")
 	format := flag.String("fmt", `%p`,
-		"format string for main entry fields\n  name - %n, login - %l, pass - %p, uuid - %u\n")
+		`format string for main entry fields: name - %n, login - %l, pass - %p,
+  uuid - %u, fields - %F:fieldname
+`)
 
 	flag.Parse()
 
@@ -237,10 +238,5 @@ func main() {
 		panic(err)
 	}
 
-	*fieldsformat, err = unquote(*fieldsformat)
-	if err != nil {
-		panic(err)
-	}
-
-	entriesPrintf(*format, *fieldsformat, logins.Entries)
+	entriesPrintf(*format, logins.Entries)
 }
