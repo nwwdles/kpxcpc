@@ -56,14 +56,14 @@ func saveAssociation(fname string, c *client.Client) (err error) {
 		return
 	}
 
-	err = os.Mkdir(filepath.Dir(fname), 0700)
+	err = os.Mkdir(filepath.Dir(fname), 0o700)
 	if err != nil {
 		if !errors.Is(err, os.ErrExist) {
 			return
 		}
 	}
 
-	err = ioutil.WriteFile(fname, b, 0600)
+	err = ioutil.WriteFile(fname, b, 0o600)
 	if err != nil {
 		return
 	}
@@ -95,9 +95,7 @@ func initClient(socketpath, fname string) (c *client.Client, err error) {
 	k := &[24]byte{}
 	copy(k[:], a.IDKey)
 
-	c, err = client.New(conn, k, a.ID)
-
-	return
+	return client.New(conn, k, a.ID)
 }
 
 func connectAndSaveIdentity(c *client.Client, fname string, waitForUnlock, triggerUnlock bool) (err error) {
@@ -107,7 +105,7 @@ func connectAndSaveIdentity(c *client.Client, fname string, waitForUnlock, trigg
 		}
 
 		if _, err = c.TestAssociate(triggerUnlock); err == nil {
-			return
+			return // we're associated and connected
 		}
 
 		// Sometimes key exchange fails and we can't decrypt the messages.
@@ -124,6 +122,7 @@ func connectAndSaveIdentity(c *client.Client, fname string, waitForUnlock, trigg
 			fmt.Fprintf(os.Stderr, "Waiting for DB to be unlocked...\r")
 			time.Sleep(time.Second)
 
+			// we don't want keepass window to try to steal the focus each second
 			triggerUnlock = false
 
 			continue
