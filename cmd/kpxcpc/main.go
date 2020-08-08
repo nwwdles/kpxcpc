@@ -232,28 +232,28 @@ func main() {
 		panic(err)
 	}
 
-	var logins client.GetLoginsResponseMessage
+	for _, u := range urls {
+		logins, err := c.GetLogins(u)
+		if err != nil {
+			if errors.Is(err, client.ErrNoLoginsFound) {
+				fmt.Fprintln(os.Stderr, "No logins found.")
+				os.Exit(1)
+			}
 
-	logins, err = c.GetLogins(urls[0])
-	if err != nil {
-		if errors.Is(err, client.ErrNoLoginsFound) {
-			fmt.Fprintln(os.Stderr, "No logins found.")
-			os.Exit(1)
+			panic(err)
 		}
 
-		panic(err)
-	}
+		if *printJSON {
+			entriesJSONPrint(logins.Entries)
+			return
+		}
 
-	if *printJSON {
-		entriesJSONPrint(logins.Entries)
-		return
-	}
+		// try to expand \n \t, etc in the format strings
+		*format, err = unquote(*format)
+		if err != nil {
+			panic(err)
+		}
 
-	// try to expand \n \t, etc in the format strings
-	*format, err = unquote(*format)
-	if err != nil {
-		panic(err)
+		entriesPrintf(*format, logins.Entries)
 	}
-
-	entriesPrintf(*format, logins.Entries)
 }
