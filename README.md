@@ -19,18 +19,18 @@ Obviously, you may want to review the code first :^)
 ```txt
 Usage of kpxcpc:
   -fmt string
-        format string for main entry fields: name - %n, login - %l, pass - %p,
-          uuid - %u, fields - %F:fieldname
-         (default "%p")
+        format string for entry fields: name - %n, login - %l, pass - %p,
+          uuid - %u, custom fields - %F:fieldname
+           (default "%p")
   -identity string
         set identity file (default "~/.local/share/kpxcpc/identity.json")
   -json
         print json
   -socket string
-        path to keepassxc-proxy socket (default "/run/user/1000/kpxc_server")
+        path to keepassxc-proxy socket
 ```
 
-Additional attributes need to be prefixed with `KPH:` (with a space between prefix and field name) to be available through keepassxc-proxy. To refer to them in kpxcpc format string, use `%F:` prefix (without a space).
+Custom entry fields need to have a name in the following format: `KPH: myfield` (with a space between prefix and field name) to be available through keepassxc-proxy. To refer to them in kpxcpc format string, use `%F:myfield` (without a space).
 
 Example:
 
