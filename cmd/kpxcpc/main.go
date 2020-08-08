@@ -185,23 +185,22 @@ func unquote(s string) (string, error) {
 func main() {
 	datahome := os.Getenv("XDG_DATA_HOME")
 	if datahome == "" {
-		datahome = os.Getenv("HOME") + "/.local/share"
+		datahome = filepath.Join(os.Getenv("HOME"), ".local", "share")
 	}
 
-	identityFile := flag.String("identity", datahome+"/kpxcpc/identity.json",
-		"set identity file")
-	printJSON := flag.Bool("json", false,
-		"print json")
+	identityFile := flag.String("identity", filepath.Join(datahome, "kpxcpc", "identity.json"), "set identity file")
+	printJSON := flag.Bool("json", false, "print json")
 	socket := flag.String("socket", "", "path to keepassxc-proxy socket")
 	format := flag.String("fmt", `%p`,
-		`format string for main entry fields: name - %n, login - %l, pass - %p,
-  uuid - %u, fields - %F:fieldname
-`)
+		"format string for entry fields: name - %n, login - %l, pass - %p,\n  uuid - %u, custom fields - %F:fieldname\n  ")
 
 	flag.Parse()
 
-	urls := flag.Args()
+	// TODO: add as CLI arguments?
+	waitForUnlock := true
+	triggerUnlock := true
 
+	urls := flag.Args()
 	if len(urls) == 0 {
 		fmt.Fprintln(os.Stderr, "Please provide at least one URL argument.")
 
@@ -224,9 +223,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	waitForUnlock := true
-	triggerUnlock := true
 
 	if err = connectAndSaveIdentity(c, *identityFile, waitForUnlock, triggerUnlock); err != nil {
 		panic(err)
