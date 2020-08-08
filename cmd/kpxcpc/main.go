@@ -71,8 +71,15 @@ func saveAssociation(fname string, c *client.Client) (err error) {
 	return
 }
 
-func initClient(socketpath, fname string) (c *client.Client, err error) {
-	conn, err := net.Dial("unix", socketpath)
+func initClient(sockets []string, fname string) (c *client.Client, err error) {
+	var conn net.Conn
+	for _, s := range sockets {
+		conn, err = net.Dial("unix", s)
+		if err == nil {
+			break
+		}
+	}
+
 	if err != nil {
 		return
 	}
@@ -185,8 +192,7 @@ func main() {
 		"set identity file")
 	printJSON := flag.Bool("json", false,
 		"print json")
-	socket := flag.String("socket", os.Getenv("XDG_RUNTIME_DIR")+"/kpxc_server",
-		"path to keepassxc-proxy socket")
+	socket := flag.String("socket", "", "path to keepassxc-proxy socket")
 	format := flag.String("fmt", `%p`,
 		`format string for main entry fields: name - %n, login - %l, pass - %p,
   uuid - %u, fields - %F:fieldname
@@ -202,7 +208,19 @@ func main() {
 		return
 	}
 
-	c, err := initClient(*socket, *identityFile)
+	var sockets []string
+
+	if *socket == "" {
+		runtimeDir := os.Getenv("XDG_RUNTIME_DIR")
+		sockets = []string{
+			filepath.Join(runtimeDir, "kpxc_server"),
+			filepath.Join(runtimeDir, "org.keepassxc.KeePassXC.BrowserServer"),
+		}
+	} else {
+		sockets = []string{*socket}
+	}
+
+	c, err := initClient(sockets, *identityFile)
 	if err != nil {
 		panic(err)
 	}
