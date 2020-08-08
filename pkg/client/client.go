@@ -39,7 +39,7 @@ var ErrFailedToOpen = errors.New("failed to open message")
 type Client struct {
 	log *log.Logger
 
-	// Session
+	// Session stuff
 	conn         net.Conn
 	privkey      [32]byte
 	pubkey       [32]byte
@@ -47,7 +47,7 @@ type Client struct {
 	clientID     [24]byte
 	lastNonce    *[24]byte
 
-	// Association
+	// Association (should be saved/loaded)
 	idKey      [24]byte // client identifier key
 	identifier string   // user-set identifier
 }
@@ -58,20 +58,22 @@ func New(conn net.Conn, idKey *[24]byte, identifier string) (c *Client, err erro
 		return
 	}
 
-	clientID, err := Nonce() // nonce has the same size as we want
+	// nonce has the same size as clientID, so we can use it to get a random ID
+	clientID, err := Nonce()
 	if err != nil {
 		return
 	}
-
-	w := ioutil.Discard
 
 	nonce, err := Nonce()
 	if err != nil {
 		return
 	}
 
+	// TODO: add an option to set logger
+	logWriter := ioutil.Discard
+
 	c = &Client{
-		log:       log.New(w, "", log.Lmicroseconds),
+		log:       log.New(logWriter, "", log.Lmicroseconds),
 		conn:      conn,
 		privkey:   *privkey,
 		pubkey:    *pubkey,
@@ -105,42 +107,42 @@ func (c *Client) makeRequest(request, response interface{}) (err error) {
 		return
 	}
 
-	buff := make([]byte, 1024)
+	buf := make([]byte, 1024)
 
-	n, err := c.conn.Read(buff)
+	n, err := c.conn.Read(buf)
 	if err != nil {
 		return
 	}
 
-	c.log.Printf("\n\t-->Sent: %s\n\t<--Recv: %s\n", b, buff[:n])
+	c.log.Printf("\n\t-->Sent: %s\n\t<--Recv: %s\n", b, buf[:n])
 
-	return json.Unmarshal(buff[:n], &response)
+	return json.Unmarshal(buf[:n], &response)
 }
 
 func (c *Client) makeRequestWithMessage(action string, message, response interface{}, triggerUnlock bool) (err error) {
 	for {
 		err = c.makeRequestWithMessageNoRetry(action, message, response, triggerUnlock)
 
-		// TODO: find out why this is happening
+		// TODO: find out why we can't open the response sometimes.
+		// We obviously exchanged pubkeys and verified association successfully already.
+		// A retry usually fixes this.
 		if errors.Is(err, ErrFailedToOpen) {
 			continue
 		}
 
-		break
+		return
 	}
-
-	return
 }
 
 func (c *Client) makeRequestWithMessageNoRetry(action string, message, response interface{}, triggerUnlock bool) (err error) {
-	nonce := c.nonce()
-
 	msg, err := json.Marshal(message)
 	if err != nil {
 		return
 	}
 
 	c.log.Printf("-->MSG:\n%s\n", msg)
+
+	nonce := c.nonce()
 
 	req := Request{
 		ClientID:      c.clientID[:],

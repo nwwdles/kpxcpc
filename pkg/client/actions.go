@@ -27,9 +27,11 @@ import (
 	"errors"
 )
 
-var ErrDBNotOpen = errors.New("database not open")
-var ErrCantDecrypt = errors.New("can't decrypt message")
-var ErrNoLoginsFound = errors.New("no logins found")
+var (
+	ErrDBNotOpen     = errors.New("database not open")
+	ErrCantDecrypt   = errors.New("can't decrypt message")
+	ErrNoLoginsFound = errors.New("no logins found")
+)
 
 const (
 	CodeDBNotOpen     = 1
@@ -53,7 +55,7 @@ func protocolError(msg string, code int) error {
 func (c *Client) ChangePublicKeys() (resp ChangePublicKeysResponse, err error) {
 	req := ChangePublicKeysRequest{
 		Request: Request{
-			Action:   ChangePublicKeysAction,
+			Action:   ActionChangePublicKeys,
 			Nonce:    c.nonce()[:],
 			ClientID: c.clientID[:],
 		},
@@ -77,7 +79,7 @@ func (c *Client) ChangePublicKeys() (resp ChangePublicKeysResponse, err error) {
 
 func (c *Client) Associate() (resp AssociateResponseMessage, err error) {
 	m := AssociateMessage{
-		Action: AssociateAction,
+		Action: ActionAssociate,
 		Key:    c.pubkey[:],
 		IDKey:  c.idKey[:],
 	}
@@ -93,7 +95,7 @@ func (c *Client) Associate() (resp AssociateResponseMessage, err error) {
 
 func (c *Client) TestAssociate(triggerUnlock bool) (resp TestAssociateResponseMessage, err error) {
 	m := TestAssociateMessage{
-		Action: TestAssociateAction,
+		Action: ActionTestAssociate,
 		DBKey: DBKey{
 			ID:  c.identifier,
 			Key: c.idKey[:],
@@ -109,7 +111,7 @@ func (c *Client) TestAssociate(triggerUnlock bool) (resp TestAssociateResponseMe
 
 func (c *Client) GetLogins(url string) (resp GetLoginsResponseMessage, err error) {
 	m := GetLoginsMessage{
-		Action: GetLoginsAction,
+		Action: ActionGetLogins,
 		URL:    url,
 		Keys: []DBKey{{
 			ID:  c.identifier,

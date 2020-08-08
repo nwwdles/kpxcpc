@@ -31,7 +31,7 @@ import (
 	"io"
 )
 
-// Base64Bytes automatically converts an array of bytes to/from base64 string.
+// Base64Bytes is an array of bytes that's automatically (un)marshaled from/to base64 string.
 type Base64Bytes []byte
 
 func (k *Base64Bytes) MarshalJSON() (out []byte, err error) {

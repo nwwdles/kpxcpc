@@ -23,10 +23,12 @@
 //
 package client
 
-const ChangePublicKeysAction = "change-public-keys"
-const AssociateAction = "associate"
-const GetLoginsAction = "get-logins"
-const TestAssociateAction = "test-associate"
+const (
+	ActionChangePublicKeys = "change-public-keys"
+	ActionAssociate        = "associate"
+	ActionGetLogins        = "get-logins"
+	ActionTestAssociate    = "test-associate"
+)
 
 type Request struct {
 	Action        string      `json:"action"`
