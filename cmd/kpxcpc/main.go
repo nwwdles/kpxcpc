@@ -71,38 +71,24 @@ func saveAssociation(fname string, c *client.Client) (err error) {
 	return
 }
 
-func initClient(sockets []string, fname string) (c *client.Client, err error) {
-	var conn net.Conn
-	for _, s := range sockets {
-		conn, err = net.Dial("unix", s)
-		if err == nil {
-			break
+func initAssociation(fname string) (a Association, err error) {
+	// try to read from file
+	b, err := ioutil.ReadFile(fname)
+	if err == nil {
+		if err = json.Unmarshal(b, &a); err == nil {
+			return
 		}
 	}
 
-	if err != nil {
-		return
-	}
-
+	// generate new key if we can't read from file
 	idKey, err := client.Nonce()
 	if err != nil {
 		return
 	}
 
-	a := &Association{IDKey: idKey[:]}
+	a.IDKey = idKey[:]
 
-	b, err := ioutil.ReadFile(fname)
-	if err == nil {
-		err = json.Unmarshal(b, a)
-		if err != nil {
-			return // corrupted file?
-		}
-	}
-
-	k := &[24]byte{}
-	copy(k[:], a.IDKey)
-
-	return client.New(conn, k, a.ID)
+	return
 }
 
 func connectAndSaveIdentity(c *client.Client, fname string, waitForUnlock, triggerUnlock bool) (err error) {
@@ -124,8 +110,8 @@ func connectAndSaveIdentity(c *client.Client, fname string, waitForUnlock, trigg
 
 		// If we're associated and the DB is closed, we try again later.
 		// (We get a new keypair but it keeps code shorter).
-		_, n := c.GetAssociation()
-		if waitForUnlock && errors.Is(err, client.ErrDBNotOpen) && n != "" {
+		_, ident := c.GetAssociation()
+		if waitForUnlock && errors.Is(err, client.ErrDBNotOpen) && ident != "" {
 			fmt.Fprintf(os.Stderr, "Waiting for DB to be unlocked...\r")
 			time.Sleep(time.Second)
 
@@ -182,6 +168,17 @@ func unquote(s string) (string, error) {
 	return strconv.Unquote(`"` + strings.ReplaceAll(s, `"`, `\"`) + `"`)
 }
 
+func dial(proto string, sockets ...string) (conn net.Conn, err error) {
+	for _, s := range sockets {
+		conn, err = net.Dial(proto, s)
+		if err == nil {
+			return
+		}
+	}
+
+	return
+}
+
 func main() {
 	datahome := os.Getenv("XDG_DATA_HOME")
 	if datahome == "" {
@@ -219,7 +216,21 @@ func main() {
 		sockets = []string{*socket}
 	}
 
-	c, err := initClient(sockets, *identityFile)
+	conn, err := dial("unix", sockets...)
+	if err != nil {
+		panic(err)
+	}
+
+	a, err := initAssociation(*identityFile)
+	if err != nil {
+		panic(err)
+	}
+
+	// We can't simply cast []byte to *[24]byte
+	idKey := &[24]byte{}
+	copy(idKey[:], a.IDKey)
+
+	c, err := client.New(conn, idKey, a.ID)
 	if err != nil {
 		panic(err)
 	}
