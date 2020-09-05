@@ -62,7 +62,7 @@ func (c *Client) ChangePublicKeys() (resp ChangePublicKeysResponse, err error) {
 		PulicKey: c.pubkey[:],
 	}
 
-	if err = c.makeRequest(req, &resp); err != nil {
+	if err = c.Send(req, &resp); err != nil {
 		return
 	}
 
@@ -84,7 +84,7 @@ func (c *Client) Associate() (resp AssociateResponseMessage, err error) {
 		IDKey:  c.idKey[:],
 	}
 
-	if err = c.makeRequestWithMessage(m.Action, m, &resp, true); err != nil {
+	if err = c.SendMessageWithRetry(m.Action, m, &resp, true); err != nil {
 		return
 	}
 
@@ -102,7 +102,7 @@ func (c *Client) TestAssociate(triggerUnlock bool) (resp TestAssociateResponseMe
 		},
 	}
 
-	if err = c.makeRequestWithMessage(m.Action, m, &resp, triggerUnlock); err != nil {
+	if err = c.SendMessageWithRetry(m.Action, m, &resp, triggerUnlock); err != nil {
 		return
 	}
 
@@ -119,7 +119,7 @@ func (c *Client) GetLogins(url string) (resp GetLoginsResponseMessage, err error
 		}},
 	}
 
-	if err = c.makeRequestWithMessage(m.Action, m, &resp, true); err != nil {
+	if err = c.SendMessageWithRetry(m.Action, m, &resp, true); err != nil {
 		return
 	}
 

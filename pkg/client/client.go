@@ -97,31 +97,17 @@ func (c *Client) GetAssociation() (idKey [24]byte, identifier string) {
 	return c.idKey, c.identifier
 }
 
-func (c *Client) makeRequest(request, response interface{}) (err error) {
-	b, err := json.Marshal(request)
-	if err != nil {
+func (c *Client) Send(request, response interface{}) (err error) {
+	if err = json.NewEncoder(c.conn).Encode(request); err != nil {
 		return
 	}
 
-	if _, err = c.conn.Write(b); err != nil {
-		return
-	}
-
-	buf := make([]byte, 1024)
-
-	n, err := c.conn.Read(buf)
-	if err != nil {
-		return
-	}
-
-	c.log.Printf("\n\t-->Sent: %s\n\t<--Recv: %s\n", b, buf[:n])
-
-	return json.Unmarshal(buf[:n], &response)
+	return json.NewDecoder(c.conn).Decode(response)
 }
 
-func (c *Client) makeRequestWithMessage(action string, message, response interface{}, triggerUnlock bool) (err error) {
+func (c *Client) SendMessageWithRetry(action string, message, response interface{}, triggerUnlock bool) (err error) {
 	for {
-		err = c.makeRequestWithMessageNoRetry(action, message, response, triggerUnlock)
+		err = c.SendMessage(action, message, response, triggerUnlock)
 
 		// TODO: find out why we can't open the response sometimes.
 		// We obviously exchanged pubkeys and verified association successfully already.
@@ -134,7 +120,7 @@ func (c *Client) makeRequestWithMessage(action string, message, response interfa
 	}
 }
 
-func (c *Client) makeRequestWithMessageNoRetry(action string, message, response interface{}, triggerUnlock bool) (err error) {
+func (c *Client) SendMessage(action string, message, response interface{}, triggerUnlock bool) (err error) {
 	msg, err := json.Marshal(message)
 	if err != nil {
 		return
@@ -153,7 +139,7 @@ func (c *Client) makeRequestWithMessageNoRetry(action string, message, response 
 	}
 
 	resp := &Response{}
-	if err = c.makeRequest(req, resp); err != nil {
+	if err = c.Send(req, resp); err != nil {
 		return
 	}
 
