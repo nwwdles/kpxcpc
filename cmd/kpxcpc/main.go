@@ -24,11 +24,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -44,23 +47,21 @@ type Association struct {
 	ID    string             `json:"id"`
 }
 
-func saveAssociation(fname string, c *client.Client) (err error) {
-	idkey, ident := c.GetAssociation()
-	a := &Association{
-		IDKey: idkey[:],
-		ID:    ident,
-	}
-
+func (a *Association) saveToFile(fname string) (err error) {
 	b, err := json.Marshal(a)
 	if err != nil {
 		return
 	}
 
-	err = os.Mkdir(filepath.Dir(fname), 0o700)
-	if err != nil {
-		if !errors.Is(err, os.ErrExist) {
-			return
+	if fname != "" && fname != "-" {
+		err = os.Mkdir(filepath.Dir(fname), 0o700)
+		if err != nil {
+			if !errors.Is(err, os.ErrExist) {
+				return
+			}
 		}
+	} else {
+		fname = "/dev/stdout"
 	}
 
 	err = ioutil.WriteFile(fname, b, 0o600)
@@ -71,13 +72,9 @@ func saveAssociation(fname string, c *client.Client) (err error) {
 	return
 }
 
-func initAssociation(fname string) (a Association, err error) {
-	// try to read from file
-	b, err := ioutil.ReadFile(fname)
-	if err == nil {
-		if err = json.Unmarshal(b, &a); err == nil {
-			return
-		}
+func initAssociation(r io.Reader) (a Association, err error) {
+	if err = json.NewDecoder(r).Decode(&a); err == nil {
+		return
 	}
 
 	// generate new key if we can't read from file
@@ -91,13 +88,81 @@ func initAssociation(fname string) (a Association, err error) {
 	return
 }
 
-func connectAndSaveIdentity(c *client.Client, fname string, waitForUnlock, triggerUnlock bool) (err error) {
+type Opts struct {
+	sockets         []string
+	associationFile string
+	format          string
+	printJSON       bool
+	associateOnly   bool
+	waitForUnlock   bool
+	triggerUnlock   bool
+}
+
+type App struct {
+	opts   Opts
+	client *client.Client
+}
+
+func New(o Opts) (a *App, err error) {
+	var conn net.Conn
+
+	for _, s := range o.sockets {
+		if conn, err = net.Dial("unix", s); err != nil {
+			continue
+		}
+	}
+
+	if err != nil {
+		return
+	}
+
+	var r io.Reader
+
+	switch {
+	case o.associateOnly: // reader stays nil to generate a new association.
+		r = bytes.NewReader(nil)
+		o.associationFile = "/dev/stdout"
+	case o.associationFile == "-":
+		r = os.Stdin
+	default:
+		r, err = os.Open(o.associationFile)
+		if err != nil {
+			_ = err // file is allowed to not exist
+		}
+	}
+
+	as, err := initAssociation(r)
+	if err != nil {
+		return
+	}
+
+	// We can't simply cast []byte to *[24]byte
+	idKey := &[24]byte{}
+	copy(idKey[:], as.IDKey)
+
+	c, err := client.New(conn, idKey, as.ID)
+	if err != nil {
+		return
+	}
+
+	a = &App{client: c, opts: o}
+
+	if err = a.connectAndSaveIdentity(); err != nil {
+		return
+	}
+
+	return a, err
+}
+
+func (a *App) connectAndSaveIdentity() (err error) {
+	triggerUnlock := a.opts.triggerUnlock
+
 	for {
-		if _, err = c.ChangePublicKeys(); err != nil {
+		if _, err = a.client.ChangePublicKeys(); err != nil {
 			return
 		}
 
-		if _, err = c.TestAssociate(triggerUnlock); err == nil {
+		if _, err = a.client.TestAssociate(triggerUnlock); err == nil {
 			return // we're associated and connected
 		}
 
@@ -110,8 +175,8 @@ func connectAndSaveIdentity(c *client.Client, fname string, waitForUnlock, trigg
 
 		// If we're associated and the DB is closed, we try again later.
 		// (We get a new keypair but it keeps code shorter).
-		_, ident := c.GetAssociation()
-		if waitForUnlock && errors.Is(err, client.ErrDBNotOpen) && ident != "" {
+		_, ident := a.client.GetAssociation()
+		if a.opts.waitForUnlock && errors.Is(err, client.ErrDBNotOpen) && ident != "" {
 			fmt.Fprintf(os.Stderr, "Waiting for DB to be unlocked...\r")
 			time.Sleep(time.Second)
 
@@ -123,21 +188,39 @@ func connectAndSaveIdentity(c *client.Client, fname string, waitForUnlock, trigg
 
 		// If all's fine, we get a new identity key and save it.
 		// Failing after this point is unexpected, so we don't retry.
-		if _, err = c.Associate(); err != nil {
+		if _, err = a.client.Associate(); err != nil {
 			return
 		}
 
-		return saveAssociation(fname, c)
+		idkey, ident := a.client.GetAssociation()
+		as := &Association{
+			IDKey: idkey[:],
+			ID:    ident,
+		}
+
+		return as.saveToFile(a.opts.associationFile)
 	}
 }
 
-func entriesJSONPrint(entries []client.LoginEntry) {
-	b, err := json.Marshal(entries)
+func (a *App) printEntry(u string) (err error) {
+	logins, err := a.client.GetLogins(u)
 	if err != nil {
-		panic(err)
+		if errors.Is(err, client.ErrNoLoginsFound) {
+			fmt.Fprintf(os.Stderr, "No logins found for %v", u)
+			os.Exit(1)
+		}
+
+		return
 	}
 
-	fmt.Println(string(b))
+	switch {
+	case a.opts.printJSON:
+		err = json.NewEncoder(os.Stdout).Encode(logins.Entries)
+	default:
+		entriesPrintf(a.opts.format, logins.Entries)
+	}
+
+	return
 }
 
 func entriesPrintf(format string, entries []client.LoginEntry) {
@@ -161,106 +244,62 @@ func entriesPrintf(format string, entries []client.LoginEntry) {
 	}
 }
 
-// unquote expands escape characters like `\n` into actual characters.
-// it can be done by the user but posix sh doesn't have $'\n' and using "$(printf '\n')"
-// or actual newlines is not always desirable.
-func unquote(s string) (string, error) {
-	return strconv.Unquote(`"` + strings.ReplaceAll(s, `"`, `\"`) + `"`)
-}
-
-func dial(proto string, sockets ...string) (conn net.Conn, err error) {
-	for _, s := range sockets {
-		conn, err = net.Dial(proto, s)
-		if err == nil {
-			return
-		}
+func main() {
+	o := Opts{
+		waitForUnlock: true,
+		triggerUnlock: true,
 	}
 
-	return
-}
-
-func main() {
 	datahome := os.Getenv("XDG_DATA_HOME")
 	if datahome == "" {
 		datahome = filepath.Join(os.Getenv("HOME"), ".local", "share")
 	}
 
-	identityFile := flag.String("identity", filepath.Join(datahome, "kpxcpc", "identity.json"), "set identity file")
-	printJSON := flag.Bool("json", false, "print json")
 	socket := flag.String("socket", "", "path to keepassxc-proxy socket")
-	format := flag.String("fmt", `%p`,
+	flag.StringVar(&o.associationFile, "identity", filepath.Join(datahome, "kpxcpc", "identity.json"), "set identity file")
+	flag.BoolVar(&o.printJSON, "json", false, "print json")
+	flag.BoolVar(&o.associateOnly, "associate", false, "associate and print association info to stdout in json format")
+	flag.StringVar(&o.format, "fmt", "%p",
 		"format string for entry fields: name - %n, login - %l, pass - %p,\n  uuid - %u, custom fields - %F:fieldname\n  ")
-
 	flag.Parse()
-
-	// TODO: add as CLI arguments?
-	waitForUnlock := true
-	triggerUnlock := true
-
-	urls := flag.Args()
-	if len(urls) == 0 {
-		fmt.Fprintln(os.Stderr, "Please provide at least one URL argument.")
-
-		return
-	}
-
-	var sockets []string
 
 	if *socket == "" {
 		runtimeDir := os.Getenv("XDG_RUNTIME_DIR")
-		sockets = []string{
+		o.sockets = []string{
 			filepath.Join(runtimeDir, "kpxc_server"),
 			filepath.Join(runtimeDir, "org.keepassxc.KeePassXC.BrowserServer"),
 		}
 	} else {
-		sockets = []string{*socket}
+		o.sockets = []string{*socket}
 	}
 
-	conn, err := dial("unix", sockets...)
+	// try to expand \n \t, etc in the format strings
+	if !o.printJSON {
+		var err error
+
+		o.format, err = strconv.Unquote(`"` + strings.ReplaceAll(o.format, `"`, `\"`) + `"`)
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}
+
+	app, err := New(o)
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
-	a, err := initAssociation(*identityFile)
-	if err != nil {
-		panic(err)
+	if o.associateOnly {
+		return
 	}
 
-	// We can't simply cast []byte to *[24]byte
-	idKey := &[24]byte{}
-	copy(idKey[:], a.IDKey)
-
-	c, err := client.New(conn, idKey, a.ID)
-	if err != nil {
-		panic(err)
-	}
-
-	if err = connectAndSaveIdentity(c, *identityFile, waitForUnlock, triggerUnlock); err != nil {
-		panic(err)
+	urls := flag.Args()
+	if len(urls) == 0 {
+		log.Fatalln("Please provide at least one URL argument.")
 	}
 
 	for _, u := range urls {
-		logins, err := c.GetLogins(u)
-		if err != nil {
-			if errors.Is(err, client.ErrNoLoginsFound) {
-				fmt.Fprintln(os.Stderr, "No logins found.")
-				os.Exit(1)
-			}
-
-			panic(err)
+		if err = app.printEntry(u); err != nil {
+			log.Fatalln(err)
 		}
-
-		if *printJSON {
-			entriesJSONPrint(logins.Entries)
-			return
-		}
-
-		// try to expand \n \t, etc in the format strings
-		*format, err = unquote(*format)
-		if err != nil {
-			panic(err)
-		}
-
-		entriesPrintf(*format, logins.Entries)
 	}
 }
