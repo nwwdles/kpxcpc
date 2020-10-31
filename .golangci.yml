@@ -15,54 +15,43 @@ linters-settings:
       - style
     disabled-checks:
       - whyNoLint
-      # - octalLiteral
-      # - dupImport # https://github.com/go-critic/go-critic/issues/845
-      # - wrapperFunc
-      # - ifElseChain
-  gocyclo:
-    min-complexity: 10
+    settings:
+      hugeParam:
+        sizeThreshold: 96
   govet:
-    check-shadowing: true
     enable-all: true
-  lll:
-    line-length: 140
-    tab-width: 8
   prealloc:
     for-loops: true
 
 linters:
-  disable:
-    - gochecknoglobals
-    - gochecknoinits
-    - godox
-    - gomnd
-    - testpackage
-    - nlreturn
-    - gci
   presets:
     - bugs
-    - complexity
-    - format
-    - performance
-    - style
     - unused
+    - performance
+    - format
+  enable:
+    - golint
+    - stylecheck
+    - interfacer
+    - unconvert
+    - asciicheck
+    - misspell
+    - dogsled
+    - nakedret
+    - gocritic
+    - whitespace
+    - goprintffuncname
+    - goerr113
+    - nestif
+    - nolintlint
 
 issues:
   exclude-rules:
     - path: _test\.go
       linters:
-        - gocyclo
-        - gocognit
         - errcheck
-        - dupl
         - gosec
-        - gomnd
-        - funlen
         - goerr113
-        - lll
         - noctx
-    - source: "^//go:generate "
-      linters:
-        - lll
   max-per-linter: 0
   max-same: 0
