@@ -53,23 +53,16 @@ func (a *Association) saveToFile(fname string) (err error) {
 		return
 	}
 
-	if fname != "" && fname != "-" {
-		err = os.Mkdir(filepath.Dir(fname), 0o700)
-		if err != nil {
-			if !errors.Is(err, os.ErrExist) {
-				return
-			}
-		}
-	} else {
+	if fname == "" || fname == "-" {
 		fname = "/dev/stdout"
 	}
 
-	err = ioutil.WriteFile(fname, b, 0o600)
-	if err != nil {
-		return
+	// make parent dirs if they don't exist
+	if err = os.Mkdir(filepath.Dir(fname), 0o700); err != nil {
+		log.Println("info:", err)
 	}
 
-	return
+	return ioutil.WriteFile(fname, b, 0o600)
 }
 
 func initAssociation(r io.Reader) (a Association, err error) {
@@ -96,6 +89,7 @@ type Opts struct {
 	associateOnly   bool
 	waitForUnlock   bool
 	triggerUnlock   bool
+	totp            bool
 }
 
 type App struct {
@@ -163,7 +157,7 @@ func (a *App) connectAndSaveIdentity() (err error) {
 		}
 
 		if _, err = a.client.TestAssociate(triggerUnlock); err == nil {
-			return // we're associated and connected
+			return // OK! we're associated and connected
 		}
 
 		// Sometimes key exchange fails and we can't decrypt the messages.
@@ -175,7 +169,7 @@ func (a *App) connectAndSaveIdentity() (err error) {
 
 		// If we're associated and the DB is closed, we try again later.
 		// (We get a new keypair but it keeps code shorter).
-		_, ident := a.client.GetAssociation()
+		_, ident := a.client.AssociationData()
 		if a.opts.waitForUnlock && errors.Is(err, client.ErrDBNotOpen) && ident != "" {
 			fmt.Fprintf(os.Stderr, "Waiting for DB to be unlocked...\r")
 			time.Sleep(time.Second)
@@ -192,7 +186,7 @@ func (a *App) connectAndSaveIdentity() (err error) {
 			return
 		}
 
-		idkey, ident := a.client.GetAssociation()
+		idkey, ident := a.client.AssociationData()
 		as := &Association{
 			IDKey: idkey[:],
 			ID:    ident,
@@ -202,25 +196,34 @@ func (a *App) connectAndSaveIdentity() (err error) {
 	}
 }
 
-func (a *App) printEntry(u string) (err error) {
-	logins, err := a.client.GetLogins(u)
+func (a *App) printTOTP(uuid string) (err error) {
+	totp, err := a.client.GetTOTP(uuid)
 	if err != nil {
-		if errors.Is(err, client.ErrNoLoginsFound) {
-			fmt.Fprintf(os.Stderr, "No logins found for %v", u)
-			os.Exit(1)
-		}
-
 		return
 	}
 
 	switch {
 	case a.opts.printJSON:
-		err = json.NewEncoder(os.Stdout).Encode(logins.Entries)
+		return json.NewEncoder(os.Stdout).Encode(totp)
 	default:
-		entriesPrintf(a.opts.format, logins.Entries)
+		fmt.Println(totp.TOTP)
+		return
+	}
+}
+
+func (a *App) printEntry(u string) (err error) {
+	logins, err := a.client.GetLogins(u)
+	if err != nil {
+		return
 	}
 
-	return
+	switch {
+	case a.opts.printJSON:
+		return json.NewEncoder(os.Stdout).Encode(logins.Entries)
+	default:
+		entriesPrintf(a.opts.format, logins.Entries)
+		return
+	}
 }
 
 func entriesPrintf(format string, entries []client.LoginEntry) {
@@ -259,6 +262,7 @@ func main() {
 	flag.StringVar(&o.associationFile, "identity", filepath.Join(datahome, "kpxcpc", "identity.json"), "set identity file")
 	flag.BoolVar(&o.printJSON, "json", false, "print json")
 	flag.BoolVar(&o.associateOnly, "associate", false, "associate and print association info to stdout in json format")
+	flag.BoolVar(&o.totp, "totp", false, "get TOTP")
 	flag.StringVar(&o.format, "fmt", "%p",
 		"format string for entry fields: name - %n, login - %l, pass - %p,\n  uuid - %u, custom fields - %F:fieldname\n  ")
 	flag.Parse()
@@ -288,18 +292,36 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	if o.associateOnly {
+	switch {
+	case o.associateOnly:
 		return
-	}
+	case o.totp:
+		uuids := flag.Args()
+		if len(uuids) == 0 {
+			log.Fatalln("Please provide at least one entry UUID")
+		}
 
-	urls := flag.Args()
-	if len(urls) == 0 {
-		log.Fatalln("Please provide at least one URL argument.")
-	}
+		for _, u := range uuids {
+			if err = app.printTOTP(u); err != nil {
+				// Note: currently it seems like keepass silently fails with
+				// `"success": "true"` if no entry exists/no totp is set up.
+				log.Fatalln(err)
+			}
+		}
+	default:
+		urls := flag.Args()
+		if len(urls) == 0 {
+			log.Fatalln("Please provide at least one URL argument.")
+		}
 
-	for _, u := range urls {
-		if err = app.printEntry(u); err != nil {
-			log.Fatalln(err)
+		for _, u := range urls {
+			if err = app.printEntry(u); err != nil {
+				if errors.Is(err, client.ErrNoLoginsFound) {
+					log.Fatalf("No logins found for %s\n", u)
+				}
+
+				log.Fatalln(err)
+			}
 		}
 	}
 }

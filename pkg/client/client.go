@@ -93,11 +93,11 @@ func (c *Client) nonce() *[24]byte {
 	return c.lastNonce
 }
 
-func (c *Client) GetAssociation() (idKey [24]byte, identifier string) {
+func (c *Client) AssociationData() (idKey [24]byte, identifier string) {
 	return c.idKey, c.identifier
 }
 
-func (c *Client) Send(request, response interface{}) (err error) {
+func (c *Client) send(request, response interface{}) (err error) {
 	if err = json.NewEncoder(c.conn).Encode(request); err != nil {
 		return
 	}
@@ -105,9 +105,9 @@ func (c *Client) Send(request, response interface{}) (err error) {
 	return json.NewDecoder(c.conn).Decode(response)
 }
 
-func (c *Client) SendMessageWithRetry(action string, message, response interface{}, triggerUnlock bool) (err error) {
+func (c *Client) sendMessageWithRetry(action string, message, response interface{}, triggerUnlock bool) (err error) {
 	for {
-		err = c.SendMessage(action, message, response, triggerUnlock)
+		err = c.sendMessage(action, message, response, triggerUnlock)
 
 		// TODO: find out why we can't open the response sometimes.
 		// We obviously exchanged pubkeys and verified association successfully already.
@@ -120,7 +120,7 @@ func (c *Client) SendMessageWithRetry(action string, message, response interface
 	}
 }
 
-func (c *Client) SendMessage(action string, message, response interface{}, triggerUnlock bool) (err error) {
+func (c *Client) sendMessage(action string, message, response interface{}, triggerUnlock bool) (err error) {
 	msg, err := json.Marshal(message)
 	if err != nil {
 		return
@@ -139,7 +139,7 @@ func (c *Client) SendMessage(action string, message, response interface{}, trigg
 	}
 
 	resp := &Response{}
-	if err = c.Send(req, resp); err != nil {
+	if err = c.send(req, resp); err != nil {
 		return
 	}
 

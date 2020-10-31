@@ -62,7 +62,7 @@ func (c *Client) ChangePublicKeys() (resp ChangePublicKeysResponse, err error) {
 		PulicKey: c.pubkey[:],
 	}
 
-	if err = c.Send(req, &resp); err != nil {
+	if err = c.send(req, &resp); err != nil {
 		return
 	}
 
@@ -77,14 +77,14 @@ func (c *Client) ChangePublicKeys() (resp ChangePublicKeysResponse, err error) {
 	return resp, err
 }
 
-func (c *Client) Associate() (resp AssociateResponseMessage, err error) {
-	m := AssociateMessage{
+func (c *Client) Associate() (resp AssociateResponse, err error) {
+	m := AssociateRequest{
 		Action: ActionAssociate,
 		Key:    c.pubkey[:],
 		IDKey:  c.idKey[:],
 	}
 
-	if err = c.SendMessageWithRetry(m.Action, m, &resp, true); err != nil {
+	if err = c.sendMessageWithRetry(m.Action, m, &resp, true); err != nil {
 		return
 	}
 
@@ -93,8 +93,8 @@ func (c *Client) Associate() (resp AssociateResponseMessage, err error) {
 	return
 }
 
-func (c *Client) TestAssociate(triggerUnlock bool) (resp TestAssociateResponseMessage, err error) {
-	m := TestAssociateMessage{
+func (c *Client) TestAssociate(triggerUnlock bool) (resp TestAssociateResponse, err error) {
+	m := TestAssociateRequest{
 		Action: ActionTestAssociate,
 		DBKey: DBKey{
 			ID:  c.identifier,
@@ -102,15 +102,13 @@ func (c *Client) TestAssociate(triggerUnlock bool) (resp TestAssociateResponseMe
 		},
 	}
 
-	if err = c.SendMessageWithRetry(m.Action, m, &resp, triggerUnlock); err != nil {
-		return
-	}
+	err = c.sendMessageWithRetry(m.Action, m, &resp, triggerUnlock)
 
 	return
 }
 
-func (c *Client) GetLogins(url string) (resp GetLoginsResponseMessage, err error) {
-	m := GetLoginsMessage{
+func (c *Client) GetLogins(url string) (resp GetLoginsResponse, err error) {
+	m := GetLoginsRequest{
 		Action: ActionGetLogins,
 		URL:    url,
 		Keys: []DBKey{{
@@ -119,9 +117,18 @@ func (c *Client) GetLogins(url string) (resp GetLoginsResponseMessage, err error
 		}},
 	}
 
-	if err = c.SendMessageWithRetry(m.Action, m, &resp, true); err != nil {
-		return
+	err = c.sendMessageWithRetry(m.Action, m, &resp, true)
+
+	return
+}
+
+func (c *Client) GetTOTP(uuid string) (resp GetTOTPResponse, err error) {
+	m := GetTOTPRequest{
+		Action: ActionGetTOTP,
+		UUID:   uuid,
 	}
+
+	err = c.sendMessageWithRetry(m.Action, m, &resp, true)
 
 	return
 }

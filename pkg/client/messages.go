@@ -28,6 +28,7 @@ const (
 	ActionAssociate        = "associate"
 	ActionGetLogins        = "get-logins"
 	ActionTestAssociate    = "test-associate"
+	ActionGetTOTP          = "get-totp"
 )
 
 type Request struct {
@@ -49,14 +50,6 @@ type Response struct {
 	ID      string      `json:"id"`
 }
 
-type AssociateResponseMessage struct {
-	Response
-}
-
-type TestAssociateResponseMessage struct {
-	Response
-}
-
 type ChangePublicKeysRequest struct {
 	Request
 	PulicKey Base64Bytes `json:"publicKey"`
@@ -67,18 +60,26 @@ type ChangePublicKeysResponse struct {
 	PulicKey Base64Bytes `json:"publicKey"`
 }
 
-type AssociateMessage struct {
+type TestAssociateRequest struct {
+	Action string `json:"action"`
+	DBKey
+}
+
+type TestAssociateResponse struct {
+	Response
+}
+
+type AssociateRequest struct {
 	Action string      `json:"action"`
 	Key    Base64Bytes `json:"key"`   // client pubkey
 	IDKey  Base64Bytes `json:"idKey"` // new id pubkey
 }
 
-type TestAssociateMessage struct {
-	Action string `json:"action"`
-	DBKey
+type AssociateResponse struct {
+	Response
 }
 
-type GetLoginsMessage struct {
+type GetLoginsRequest struct {
 	Action    string  `json:"action"`
 	URL       string  `json:"url"`
 	SubmitURL string  `json:"submitUrl,omitempty"`
@@ -91,7 +92,7 @@ type DBKey struct {
 	Key Base64Bytes `json:"key"` // saved pubkey
 }
 
-type GetLoginsResponseMessage struct {
+type GetLoginsResponse struct {
 	Response
 	Count   int          `json:"count"`
 	Entries []LoginEntry `json:"entries"`
@@ -103,4 +104,14 @@ type LoginEntry struct {
 	Password     string              `json:"password"`
 	UUID         string              `json:"uuid"`
 	StringFields []map[string]string `json:"stringFields"`
+}
+
+type GetTOTPRequest struct {
+	Action string `json:"action"`
+	UUID   string `json:"uuid"`
+}
+
+type GetTOTPResponse struct {
+	Response
+	TOTP string `json:"totp"`
 }
