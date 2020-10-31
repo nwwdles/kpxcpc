@@ -21,7 +21,7 @@
 // SOFTWARE.
 //
 //
-package client
+package kpclient
 
 import (
 	"bytes"

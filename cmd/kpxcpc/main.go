@@ -39,12 +39,12 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/nwwdles/kpxcpc/pkg/client"
+	"gitlab.com/nwwdles/kpxcpc/pkg/kpclient"
 )
 
 type Association struct {
-	IDKey client.Base64Bytes `json:"idKey"`
-	ID    string             `json:"id"`
+	IDKey kpclient.Base64Bytes `json:"idKey"`
+	ID    string               `json:"id"`
 }
 
 func (a *Association) saveToFile(fname string) (err error) {
@@ -71,7 +71,7 @@ func initAssociation(r io.Reader) (a Association, err error) {
 	}
 
 	// generate new key if we can't read from file
-	idKey, err := client.Nonce()
+	idKey, err := kpclient.Nonce()
 	if err != nil {
 		return
 	}
@@ -94,7 +94,7 @@ type Opts struct {
 
 type App struct {
 	opts   Opts
-	client *client.Client
+	client *kpclient.Client
 }
 
 func New(o Opts) (a *App, err error) {
@@ -134,7 +134,7 @@ func New(o Opts) (a *App, err error) {
 	idKey := &[24]byte{}
 	copy(idKey[:], as.IDKey)
 
-	c, err := client.New(conn, idKey, as.ID)
+	c, err := kpclient.New(conn, idKey, as.ID)
 	if err != nil {
 		return
 	}
@@ -163,14 +163,14 @@ func (a *App) connectAndSaveIdentity() (err error) {
 		// Sometimes key exchange fails and we can't decrypt the messages.
 		// This can be fixed by exchanging keys again.
 		// TODO: find out why this is happening
-		if errors.Is(err, client.ErrCantDecrypt) {
+		if errors.Is(err, kpclient.ErrCannotDecryptMessage) {
 			continue
 		}
 
 		// If we're associated and the DB is closed, we try again later.
 		// (We get a new keypair but it keeps code shorter).
 		_, ident := a.client.AssociationData()
-		if a.opts.waitForUnlock && errors.Is(err, client.ErrDBNotOpen) && ident != "" {
+		if a.opts.waitForUnlock && errors.Is(err, kpclient.ErrDatabaseNotOpened) && ident != "" {
 			fmt.Fprintf(os.Stderr, "Waiting for DB to be unlocked...\r")
 			time.Sleep(time.Second)
 
@@ -226,7 +226,7 @@ func (a *App) printEntry(u string) (err error) {
 	}
 }
 
-func entriesPrintf(format string, entries []client.LoginEntry) {
+func entriesPrintf(format string, entries []kpclient.LoginEntry) {
 	for i := range entries {
 		e := &entries[i]
 		replacePairs := []string{
@@ -316,7 +316,7 @@ func main() {
 
 		for _, u := range urls {
 			if err = app.printEntry(u); err != nil {
-				if errors.Is(err, client.ErrNoLoginsFound) {
+				if errors.Is(err, kpclient.ErrNoLoginsFound) {
 					log.Fatalf("No logins found for %s\n", u)
 				}
 

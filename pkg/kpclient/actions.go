@@ -21,30 +21,82 @@
 // SOFTWARE.
 //
 //
-package client
+package kpclient
 
 import (
 	"errors"
 )
 
 var (
-	ErrDBNotOpen     = errors.New("database not open")
-	ErrCantDecrypt   = errors.New("can't decrypt message")
-	ErrNoLoginsFound = errors.New("no logins found")
+	ErrUnknownError               = errors.New("unknown error")
+	ErrDatabaseNotOpened          = errors.New("database not opened")
+	ErrDatabaseHashNotReceived    = errors.New("database hash not received")
+	ErrClientPublicKeyNotReceived = errors.New("client public key not received")
+	ErrCannotDecryptMessage       = errors.New("cannot decrypt message")
+	ErrTimeoutOrNotConnected      = errors.New("timeout or not connected")
+	ErrActionCancelledOrDenied    = errors.New("action cancelled or denied")
+	ErrPublicKeyNotFound          = errors.New("public key not found")
+	ErrAssociationFailed          = errors.New("association failed")
+	ErrKeyChangeFailed            = errors.New("key change failed")
+	ErrEncryptionKeyUnrecognized  = errors.New("encryption key unrecognized")
+	ErrNoSavedDatabasesFound      = errors.New("no saved databases found")
+	ErrIncorrectAction            = errors.New("incorrect action")
+	ErrEmptyMessageReceived       = errors.New("empty message received")
+	ErrNoURLProvided              = errors.New("no url provided")
+	ErrNoLoginsFound              = errors.New("no logins found")
 )
 
 const (
-	CodeDBNotOpen     = 1
-	CodeCantDecrypt   = 4
-	CodeNoLoginsFound = 15
+	CodeUnknownError               = 0
+	CodeDatabaseNotOpened          = 1
+	CodeDatabaseHashNotReceived    = 2
+	CodeClientPublicKeyNotReceived = 3
+	CodeCannotDecryptMessage       = 4
+	CodeTimeoutOrNotConnected      = 5
+	CodeActionCancelledOrDenied    = 6
+	CodePublicKeyNotFound          = 7
+	CodeAssociationFailed          = 8
+	CodeKeyChangeFailed            = 9
+	CodeEncryptionKeyUnrecognized  = 10
+	CodeNoSavedDatabasesFound      = 11
+	CodeIncorrectAction            = 12
+	CodeEmptyMessageReceived       = 13
+	CodeNoURLProvided              = 14
+	CodeNoLoginsFound              = 15
 )
 
 func protocolError(msg string, code int) error {
 	switch code {
-	case CodeDBNotOpen:
-		return ErrDBNotOpen
-	case CodeCantDecrypt:
-		return ErrCantDecrypt
+	case CodeUnknownError:
+		return ErrUnknownError
+	case CodeDatabaseNotOpened:
+		return ErrDatabaseNotOpened
+	case CodeDatabaseHashNotReceived:
+		return ErrDatabaseHashNotReceived
+	case CodeClientPublicKeyNotReceived:
+		return ErrClientPublicKeyNotReceived
+	case CodeCannotDecryptMessage:
+		return ErrCannotDecryptMessage
+	case CodeTimeoutOrNotConnected:
+		return ErrTimeoutOrNotConnected
+	case CodeActionCancelledOrDenied:
+		return ErrActionCancelledOrDenied
+	case CodePublicKeyNotFound:
+		return ErrPublicKeyNotFound
+	case CodeAssociationFailed:
+		return ErrAssociationFailed
+	case CodeKeyChangeFailed:
+		return ErrKeyChangeFailed
+	case CodeEncryptionKeyUnrecognized:
+		return ErrEncryptionKeyUnrecognized
+	case CodeNoSavedDatabasesFound:
+		return ErrNoSavedDatabasesFound
+	case CodeIncorrectAction:
+		return ErrIncorrectAction
+	case CodeEmptyMessageReceived:
+		return ErrEmptyMessageReceived
+	case CodeNoURLProvided:
+		return ErrNoURLProvided
 	case CodeNoLoginsFound:
 		return ErrNoLoginsFound
 	default:
