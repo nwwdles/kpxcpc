@@ -1,0 +1,38 @@
+# Maintainer: nwwdles <nwwdles@gmail.com>
+
+pkgname=kpxcpc-git
+_pkgname=kpxcpc
+pkgver=r36.db0d4d6
+pkgrel=1
+license=('MIT')
+pkgdesc="A KeepassXC-proxy command line client"
+depends=('glibc')
+makedepends=('go')
+arch=('aarch64' 'armv7h' 'i686' 'x86_64')
+url="https://gitlab.com/nwwdles/kpxcpc"
+source=("${_pkgname}::git+https://gitlab.com/nwwdles/$_pkgname.git")
+sha256sums=('SKIP')
+provides=('kpxcpc')
+conflicts=('kpxcpc')
+
+prepare() {
+    # prevent creation of a `go` directory in one's home.
+    # this directory cannot be removed with even `rm -rf` unless one becomes root
+    # or changes the write permissions.
+    export GOPATH="$srcdir/gopath"
+    go clean -modcache
+}
+
+build() {
+    cd "${srcdir}/${_pkgname}"
+    go mod vendor
+    go build -mod=vendor -trimpath ./cmd/kpxcpc
+    go clean -modcache
+}
+
+package() {
+    cd "${srcdir}/${_pkgname}"
+    install -Dm755 -t "${pkgdir}/usr/bin" ./kpxcpc
+    install -Dm644 -t "${pkgdir}/usr/share/licenses/${_pkgname}" ./LICENSE
+    install -Dm644 -t "${pkgdir}/usr/share/doc/${_pkgname}" ./README.md
+}

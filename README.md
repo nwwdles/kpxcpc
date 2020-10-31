@@ -14,6 +14,8 @@ go get -u gitlab.com/nwwdles/kpxcpc/cmd/kpxcpc
 
 Obviously, you may want to review the code first :^)
 
+There's also a [PKGBUILD](meta/PKGBUILD) for Arch-based systems.
+
 ## Usage
 
 ```txt
