@@ -57,6 +57,9 @@ myfield: hello world
 
 $ kpxcpc -json 'http://google.com'
 [{"login":"elon","name":"google","password":"pwAJWsXs2HcDvz5HM4mk3ub@7rdP7473n7y5i9","uuid":"d1e6cba53ad04e8fb23f2991c160ce5a","stringFields":[{"KPH: myfieldname":"hello world"}]}]
+
+$ kpxcpc -totp 0851580ae78549e3be60949e908a040e
+C2PHR
 ```
 
 ## Security
