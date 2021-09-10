@@ -9,7 +9,7 @@ Same as browser extension, it retrieves passwords from an unlocked DB. Unlike `s
 If you have Go set up, you can do
 
 ```sh
-go get -u gitlab.com/nwwdles/kpxcpc
+go install gitlab.com/nwwdles/kpxcpc@latest
 ```
 
 Obviously, you may want to review the code first :^)
