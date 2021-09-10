@@ -32,32 +32,32 @@ const (
 )
 
 type Request struct {
-	Action        string      `json:"action"`
-	ClientID      Base64Bytes `json:"clientID"`
-	Nonce         Base64Bytes `json:"nonce"`
-	Message       Base64Bytes `json:"message,omitempty"`
-	TriggerUnlock bool        `json:"triggerUnlock,string,omitempty"`
+	Action        string `json:"action"`
+	ClientID      []byte `json:"clientID"`
+	Nonce         []byte `json:"nonce"`
+	Message       []byte `json:"message,omitempty"`
+	TriggerUnlock bool   `json:"triggerUnlock,string,omitempty"`
 }
 
 type Response struct {
-	Message Base64Bytes `json:"message"`
-	Nonce   Base64Bytes `json:"nonce"`
-	Error   *string     `json:"error"`
-	Code    *int        `json:"errorCode,string"`
-	Success *bool       `json:"success,string"`
-	Version *string     `json:"version"`
-	Hash    *string     `json:"hash"`
-	ID      string      `json:"id"`
+	Message []byte  `json:"message"`
+	Nonce   []byte  `json:"nonce"`
+	Error   *string `json:"error"`
+	Code    *int    `json:"errorCode,string"`
+	Success *bool   `json:"success,string"`
+	Version *string `json:"version"`
+	Hash    *string `json:"hash"`
+	ID      string  `json:"id"`
 }
 
 type ChangePublicKeysRequest struct {
 	Request
-	PulicKey Base64Bytes `json:"publicKey"`
+	PulicKey []byte `json:"publicKey"`
 }
 
 type ChangePublicKeysResponse struct {
 	Response
-	PulicKey Base64Bytes `json:"publicKey"`
+	PulicKey []byte `json:"publicKey"`
 }
 
 type TestAssociateRequest struct {
@@ -70,9 +70,9 @@ type TestAssociateResponse struct {
 }
 
 type AssociateRequest struct {
-	Action string      `json:"action"`
-	Key    Base64Bytes `json:"key"`   // client pubkey
-	IDKey  Base64Bytes `json:"idKey"` // new id pubkey
+	Action string `json:"action"`
+	Key    []byte `json:"key"`   // client pubkey
+	IDKey  []byte `json:"idKey"` // new id pubkey
 }
 
 type AssociateResponse struct {
@@ -88,14 +88,14 @@ type GetLoginsRequest struct {
 }
 
 type DBKey struct {
-	ID  string      `json:"id"`  // saved DB identifier
-	Key Base64Bytes `json:"key"` // saved pubkey
+	ID  string `json:"id"`  // saved DB identifier
+	Key []byte `json:"key"` // saved pubkey
 }
 
 type GetLoginsResponse struct {
 	Response
-	Count   int          `json:"count"`
 	Entries []LoginEntry `json:"entries"`
+	Count   int          `json:"count"`
 }
 
 type LoginEntry struct {

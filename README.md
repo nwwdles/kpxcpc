@@ -9,7 +9,7 @@ Same as browser extension, it retrieves passwords from an unlocked DB. Unlike `s
 If you have Go set up, you can do
 
 ```sh
-go get -u gitlab.com/nwwdles/kpxcpc/cmd/kpxcpc
+go get -u gitlab.com/nwwdles/kpxcpc
 ```
 
 Obviously, you may want to review the code first :^)
@@ -30,8 +30,12 @@ Usage of kpxcpc:
         set identity file (default "~/.local/share/kpxcpc/identity.json")
   -json
         print json
+  -nounlock
+        do not trigger DB unlock prompt
   -socket string
         path to keepassxc-proxy socket
+  -totp
+        get TOTP
 ```
 
 To delimit entries with null-character, use `\x00` instead of `\0`.
@@ -57,7 +61,17 @@ $ kpxcpc -json 'http://google.com'
 
 ## Security
 
-If you're really concerned about security, you can manage the storage of association info manually:
+Association info is stored in plaintext in `~/.local/share/kpxcpc/identity.json`. If you want, you can manage the storage of association info manually:
 
 - use `-associate` to associate once and print identity json to stdout,
 - use `-identity -` to read identity json from stdin.
+
+Still, if you use the browser extension, it's probably not too hard to retrieve association info from your browser profile.
+
+```sh
+$ kpxcpc -associate
+{"id":"example","idKey":"tli3pJmrVwLEyfGcf29LzAKvNyAJaigu"}
+
+$ echo '{"id":"example","idKey":"tli3pJmrVwLEyfGcf29LzAKvNyAJaigu"}' | kpxcpc -identity - 'https://google.com'
+pwAJWsXs2HcDvz5HM4mk3ub@7rdP7473n7y5i9
+```

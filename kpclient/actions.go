@@ -119,7 +119,13 @@ func (c *Client) ChangePublicKeys() (resp ChangePublicKeysResponse, err error) {
 	}
 
 	if resp.Error != nil {
-		err = protocolError(*resp.Error, *resp.Code)
+		c := 0
+		if resp.Code != nil {
+			c = *resp.Code
+		}
+
+		err = protocolError(*resp.Error, c)
+
 		return
 	}
 

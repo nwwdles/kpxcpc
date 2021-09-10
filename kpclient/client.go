@@ -27,8 +27,6 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
-	"log"
 	"net"
 
 	"golang.org/x/crypto/nacl/box"
@@ -37,9 +35,6 @@ import (
 var ErrFailedToOpen = errors.New("failed to open message")
 
 type Client struct {
-	log *log.Logger
-
-	// Session stuff
 	conn         net.Conn
 	privkey      [32]byte
 	pubkey       [32]byte
@@ -52,7 +47,7 @@ type Client struct {
 	identifier string   // user-set identifier
 }
 
-func New(conn net.Conn, idKey *[24]byte, identifier string) (c *Client, err error) {
+func New(conn net.Conn, idKey []byte, clientIdentifier string) (c *Client, err error) {
 	pubkey, privkey, err := box.GenerateKey(rand.Reader)
 	if err != nil {
 		return
@@ -69,19 +64,23 @@ func New(conn net.Conn, idKey *[24]byte, identifier string) (c *Client, err erro
 		return
 	}
 
-	// TODO: add an option to set logger
-	logWriter := ioutil.Discard
+	idKeyArray, err := Nonce()
+	if err != nil {
+		return nil, err
+	}
+	if idKey != nil {
+		copy(idKeyArray[:], idKey)
+	}
 
 	c = &Client{
-		log:       log.New(logWriter, "", log.Lmicroseconds),
 		conn:      conn,
 		privkey:   *privkey,
 		pubkey:    *pubkey,
 		clientID:  *clientID,
 		lastNonce: nonce,
 
-		idKey:      *idKey,
-		identifier: identifier,
+		idKey:      *idKeyArray,
+		identifier: clientIdentifier,
 	}
 
 	return c, nil
@@ -126,16 +125,14 @@ func (c *Client) sendMessage(action string, message, response interface{}, trigg
 		return
 	}
 
-	c.log.Printf("-->MSG:\n%s\n", msg)
-
 	nonce := c.nonce()
 
 	req := Request{
 		ClientID:      c.clientID[:],
 		Action:        action,
 		TriggerUnlock: triggerUnlock,
-		Nonce:         Base64Bytes(nonce[:]),
-		Message:       Base64Bytes(box.Seal([]byte{}, msg, nonce, &c.serverPubkey, &c.privkey)),
+		Nonce:         nonce[:],
+		Message:       box.Seal([]byte{}, msg, nonce, &c.serverPubkey, &c.privkey),
 	}
 
 	resp := &Response{}
@@ -157,8 +154,6 @@ func (c *Client) sendMessage(action string, message, response interface{}, trigg
 	if !ok {
 		return ErrFailedToOpen
 	}
-
-	c.log.Printf("<--RECVMSG:\n%s\n", b)
 
 	return json.Unmarshal(b, response)
 }

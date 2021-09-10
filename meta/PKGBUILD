@@ -26,7 +26,7 @@ prepare() {
 build() {
     cd "${srcdir}/${_pkgname}"
     go mod vendor
-    go build -mod=vendor -trimpath ./cmd/kpxcpc
+    go build -mod=vendor -trimpath
     go clean -modcache
 }
 
