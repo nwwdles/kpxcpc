@@ -27,6 +27,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"io"
 	"net"
 
 	"golang.org/x/crypto/nacl/box"
@@ -42,48 +43,48 @@ type Client struct {
 	clientID     [24]byte
 	lastNonce    *[24]byte
 
+	rand io.Reader
 	// Association (should be saved/loaded)
 	idKey      [24]byte // client identifier key
 	identifier string   // user-set identifier
 }
 
-func New(conn net.Conn, idKey []byte, clientIdentifier string) (c *Client, err error) {
-	pubkey, privkey, err := box.GenerateKey(rand.Reader)
+func New(conn net.Conn, randReader io.Reader, idKey []byte, clientIdentifier string) (*Client, error) {
+	if randReader == nil {
+		randReader = rand.Reader
+	}
+	pubkey, privkey, err := box.GenerateKey(randReader)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	// nonce has the same size as clientID, so we can use it to get a random ID
 	clientID, err := Nonce()
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	nonce, err := Nonce()
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	idKeyArray, err := Nonce()
 	if err != nil {
 		return nil, err
 	}
-	if idKey != nil {
-		copy(idKeyArray[:], idKey)
-	}
+	copy(idKeyArray[:], idKey)
 
-	c = &Client{
-		conn:      conn,
-		privkey:   *privkey,
-		pubkey:    *pubkey,
-		clientID:  *clientID,
-		lastNonce: nonce,
-
+	return &Client{
+		conn:       conn,
+		privkey:    *privkey,
+		pubkey:     *pubkey,
+		clientID:   *clientID,
+		lastNonce:  nonce,
+		rand:       randReader,
 		idKey:      *idKeyArray,
 		identifier: clientIdentifier,
-	}
-
-	return c, nil
+	}, nil
 }
 
 func (c *Client) nonce() *[24]byte {
@@ -135,8 +136,8 @@ func (c *Client) sendMessage(action string, message, response interface{}, trigg
 		Message:       box.Seal([]byte{}, msg, nonce, &c.serverPubkey, &c.privkey),
 	}
 
-	resp := &Response{}
-	if err = c.send(req, resp); err != nil {
+	var resp Response
+	if err = c.send(req, &resp); err != nil {
 		return
 	}
 
@@ -145,9 +146,7 @@ func (c *Client) sendMessage(action string, message, response interface{}, trigg
 	}
 
 	n := &[24]byte{}
-
 	copy(n[:], resp.Nonce)
-
 	c.lastNonce = n
 
 	b, ok := box.Open([]byte{}, resp.Message, n, &c.serverPubkey, &c.privkey)

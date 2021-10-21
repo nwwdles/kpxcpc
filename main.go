@@ -101,7 +101,7 @@ func (a *App) connect() error {
 		return fmt.Errorf("error connecting to keepassxc: %w", err)
 	}
 
-	a.client, err = kpclient.New(conn, as.IDKey, as.ID)
+	a.client, err = kpclient.New(conn, nil, as.IDKey, as.ID)
 	if err != nil {
 		return fmt.Errorf("failed to initialize client: %w", err)
 	}
