@@ -146,11 +146,7 @@ func TestClient_Associate(t *testing.T) {
 		wantResp AssociateRequest
 		wantErr  bool
 	}{
-		{
-			resp: AssociateResponse{
-				Response: Response{},
-			},
-		},
+		{},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
