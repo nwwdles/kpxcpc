@@ -1,0 +1,16 @@
+stages:
+  - lint
+  - test
+
+golangci-lint:
+  image: golangci/golangci-lint:latest
+  stage: lint
+  script:
+    - golangci-lint run
+
+test:
+  image: golang:1.17
+  stage: test
+  script:
+    - go test -v -race --coverpkg=./... --coverprofile=coverage.out -timeout 10m ./...
+    - go tool cover -func coverage.out
