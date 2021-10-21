@@ -44,6 +44,7 @@ type Client struct {
 	lastNonce    *[24]byte
 
 	rand io.Reader
+
 	// Association (should be saved/loaded)
 	idKey      [24]byte // client identifier key
 	identifier string   // user-set identifier
