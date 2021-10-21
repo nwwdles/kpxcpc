@@ -1,7 +1,3 @@
-run:
-  build-tags:
-    - integration
-
 linters-settings:
   errcheck:
     check-type-assertions: true
@@ -20,8 +16,8 @@ linters-settings:
         sizeThreshold: 96
   govet:
     enable-all: true
-  prealloc:
-    for-loops: true
+    disable:
+      - fieldalignment
 
 linters:
   presets:
@@ -29,21 +25,16 @@ linters:
     - unused
     - performance
     - format
+    - metalinter
   enable:
-    - golint
-    - stylecheck
-    - interfacer
-    - unconvert
-    - asciicheck
-    - misspell
-    - dogsled
-    - nakedret
-    - gocritic
-    - whitespace
-    - goprintffuncname
     - goerr113
+    - misspell
+    - nakedret
     - nestif
     - nolintlint
+    - stylecheck
+    - unconvert
+    - whitespace
 
 issues:
   exclude-rules:
@@ -53,5 +44,9 @@ issues:
         - gosec
         - goerr113
         - noctx
+    - path: _test\.go
+      text: fieldalignment
+    - path: _test\.go
+      text: Using the variable on range scope `tt` in function literal
   max-per-linter: 0
   max-same: 0
